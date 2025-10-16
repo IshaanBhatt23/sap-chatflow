@@ -1,0 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* SAP Conversational Hub Design System */
+    /* Primary - Dark Blue from SAP Fiori */
+    --background: 0 0% 100%;
+    --foreground: 209 83% 15%;
+
+    /* Card and Surface */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 20%;
+
+    /* Popover */
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 20%;
+
+    /* Primary - SAP Dark Blue */
+    --primary: 209 83% 15%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - Light Grey for subtle backgrounds */
+    --secondary: 210 20% 96%;
+    --secondary-foreground: 0 0% 20%;
+
+    /* Muted - For disabled/secondary text */
+    --muted: 210 15% 92%;
+    --muted-foreground: 0 0% 45%;
+
+    /* Accent - Interactive Blue */
+    --accent: 211 100% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Success - for connected status */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+
+    /* Destructive */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders and Input */
+    --border: 210 15% 88%;
+    --input: 210 15% 88%;
+    --ring: 211 100% 50%;
+
+    /* Chat specific */
+    --chat-user-bg: 211 100% 50%;
+    --chat-bot-bg: 210 20% 96%;
+    --chat-sidebar: 209 83% 15%;
+    --chat-sidebar-hover: 209 83% 20%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 209 83% 10%;
+    --foreground: 0 0% 95%;
+
+    --card: 209 60% 12%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 209 60% 12%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 211 100% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 209 40% 18%;
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 209 40% 18%;
+    --muted-foreground: 0 0% 65%;
+
+    --accent: 211 100% 45%;
+    --accent-foreground: 0 0% 100%;
+
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 209 40% 20%;
+    --input: 209 40% 20%;
+    --ring: 211 100% 50%;
+
+    --chat-user-bg: 211 100% 45%;
+    --chat-bot-bg: 209 40% 18%;
+    --chat-sidebar: 209 83% 8%;
+    --chat-sidebar-hover: 209 83% 12%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+/* Custom scrollbar for chat */
+.chat-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 3px;
+}
+
+.chat-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
