@@ -4,11 +4,17 @@ import { MessageBubble, Message } from "./MessageBubble"
 import { WelcomeScreen } from "./WelcomeScreen"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Sun, Moon } from "lucide-react"
+import { Sun, Moon, Github, Linkedin, Globe } from "lucide-react" // Removed UserCircle, added Globe
 import { useTheme } from "next-themes"
 import { motion, AnimatePresence } from "framer-motion"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
-// NEW: Add isBotTyping to the props interface
+// Interface and TypingIndicator component remain the same...
 interface ChatWindowProps {
   messages: Message[]
   onPromptClick: (prompt: string) => void
@@ -16,7 +22,6 @@ interface ChatWindowProps {
   isBotTyping: boolean 
 }
 
-// NEW: A simple, animated typing indicator component
 const TypingIndicator = () => (
   <motion.div
     initial={{ opacity: 0, y: 10 }}
@@ -25,19 +30,19 @@ const TypingIndicator = () => (
     transition={{ duration: 0.3 }}
     className="flex items-center justify-start mb-4"
   >
-    <div className="flex items-center space-x-1 rounded-lg bg-chat-bot-bg px-4 py-3">
+    <div className="flex items-center space-x-1.5 rounded-lg bg-chat-bot-bg px-4 py-3">
       <motion.span
-        className="h-2 w-2 rounded-full bg-muted-foreground"
+        className="h-2 w-2 rounded-full bg-muted-foreground/70"
         animate={{ y: [0, -4, 0] }}
         transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut", delay: 0 }}
       />
       <motion.span
-        className="h-2 w-2 rounded-full bg-muted-foreground"
+        className="h-2 w-2 rounded-full bg-muted-foreground/70"
         animate={{ y: [0, -4, 0] }}
         transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
       />
       <motion.span
-        className="h-2 w-2 rounded-full bg-muted-foreground"
+        className="h-2 w-2 rounded-full bg-muted-foreground/70"
         animate={{ y: [0, -4, 0] }}
         transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
       />
@@ -45,14 +50,14 @@ const TypingIndicator = () => (
   </motion.div>
 );
 
-
-export const ChatWindow = ({ messages, onPromptClick, isConnected, isBotTyping }: ChatWindowProps) => { // NEW: Destructure isBotTyping
+export const ChatWindow = ({ messages, onPromptClick, isConnected, isBotTyping }: ChatWindowProps) => {
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [isNearBottom, setIsNearBottom] = useState(true)
   const firstRender = useRef(true)
   const { theme, setTheme } = useTheme()
 
+  // Scroll logic remains the same...
   const handleScroll = () => {
     const scrollEl = scrollAreaRef.current
     if (!scrollEl) return
@@ -64,17 +69,15 @@ export const ChatWindow = ({ messages, onPromptClick, isConnected, isBotTyping }
 
   useEffect(() => {
     if (!messagesEndRef.current) return
-
     if (firstRender.current) {
       firstRender.current = false
       messagesEndRef.current.scrollIntoView({ behavior: "auto" })
       return
     }
-
     if (isNearBottom) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
     }
-  }, [messages, isBotTyping]) // NEW: Also trigger scroll when typing indicator appears/disappears
+  }, [messages, isBotTyping])
 
   return (
     <div className="flex h-full flex-col">
@@ -91,40 +94,65 @@ export const ChatWindow = ({ messages, onPromptClick, isConnected, isBotTyping }
           </Badge>
         </div>
 
-        {/* 🌞 / 🌙 Theme Toggle Button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Toggle theme"
-          onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-          className="relative overflow-hidden rounded-full"
-        >
-          <AnimatePresence mode="wait" initial={false}>
-            {theme === "light" ? (
-              <motion.span
-                key="sun"
-                initial={{ rotate: -90, opacity: 0, scale: 0.8 }}
-                animate={{ rotate: 0, opacity: 1, scale: 1 }}
-                exit={{ rotate: 90, opacity: 0, scale: 0.8 }}
-                transition={{ duration: 0.4, ease: "easeInOut" }}
-                className="absolute inset-0 flex items-center justify-center text-yellow-400 drop-shadow-[0_0_4px_rgba(250,204,21,0.6)]"
-              >
-                <Sun className="h-[1.2rem] w-[1.2rem]" />
-              </motion.span>
-            ) : (
-              <motion.span
-                key="moon"
-                initial={{ rotate: 90, opacity: 0, scale: 0.8 }}
-                animate={{ rotate: 0, opacity: 1, scale: 1 }}
-                exit={{ rotate: -90, opacity: 0, scale: 0.8 }}
-                transition={{ duration: 0.4, ease: "easeInOut" }}
-                className="absolute inset-0 flex items-center justify-center text-blue-400 drop-shadow-[0_0_4px_rgba(96,165,250,0.6)]"
-              >
-                <Moon className="h-[1.2rem] w-[1.2rem]" />
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </Button>
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-muted-foreground hidden sm:block">Made by Ishaan Bhatt</p>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a href="https://github.com/IshaanBhatt23" target="_blank" rel="noopener noreferrer">
+                  <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
+                    <Github className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </a>
+              </TooltipTrigger>
+              <TooltipContent><p>GitHub</p></TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a href="https://www.linkedin.com/in/ishaan-bhatt-110a93256/" target="_blank" rel="noopener noreferrer">
+                  <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
+                    <Linkedin className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </a>
+              </TooltipTrigger>
+              <TooltipContent><p>LinkedIn</p></TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a href="https://personal-portfolio-puce-delta-61.vercel.app/" target="_blank" rel="noopener noreferrer">
+                  <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
+                    <Globe className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </a>
+              </TooltipTrigger>
+              <TooltipContent><p>Portfolio</p></TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {/* NEW: Added a visual separator */}
+          <div className="h-6 w-px bg-border mx-2"></div>
+
+          {/* Theme Toggle Button (restored) */}
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Toggle theme"
+            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+            className="relative overflow-hidden rounded-full h-8 w-8"
+          >
+            <AnimatePresence mode="wait" initial={false}>
+              {theme === "light" ? (
+                <motion.span key="sun" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.2 }}>
+                  <Sun className="h-5 w-5" />
+                </motion.span>
+              ) : (
+                <motion.span key="moon" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.2 }}>
+                  <Moon className="h-5 w-5" />
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </Button>
+        </div>
       </div>
 
       {/* Messages Area */}
@@ -134,20 +162,16 @@ export const ChatWindow = ({ messages, onPromptClick, isConnected, isBotTyping }
         onScrollCapture={handleScroll}
       >
         <div className="px-6 py-4">
-          {messages.length === 0 && !isBotTyping ? ( // MODIFIED: Don't show welcome screen if bot is about to type
+          {messages.length === 0 && !isBotTyping ? (
             <WelcomeScreen onPromptClick={onPromptClick} />
           ) : (
             messages.map((message) => (
               <MessageBubble key={message.id} message={message} />
             ))
           )}
-
-          {/* NEW: Conditionally render the typing indicator */}
           <AnimatePresence>
             {isBotTyping && <TypingIndicator />}
           </AnimatePresence>
-
-          {/* Invisible anchor div for autoscroll */}
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
