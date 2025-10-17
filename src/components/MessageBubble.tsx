@@ -5,6 +5,7 @@ import { DetailCard } from "./DetailCard";
 import { Button } from "@/components/ui/button";
 import { Copy, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { motion } from "framer-motion"; // NEW: Import motion
 
 export interface MessageAction {
   label: string;
@@ -72,9 +73,13 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
   };
 
   return (
-    // MODIFIED: This container is now the relative group for positioning
-    <div className={cn("group relative flex w-full mb-4 items-end", isUser ? "justify-end" : "justify-start")}>
-      {/* MODIFIED: For user messages, the button comes first visually */}
+    // MODIFIED: Wrapped the outer div with motion.div for animation
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className={cn("group relative flex w-full mb-4 items-end", isUser ? "justify-end" : "justify-start")}
+    >
       {isUser && (
         <Button
           variant="ghost"
@@ -90,7 +95,6 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
         </Button>
       )}
 
-      {/* The message bubble itself */}
       <div
         className={cn(
           "max-w-[80%] rounded-lg px-4 pt-3 pb-2",
@@ -99,12 +103,10 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
             : "bg-chat-bot text-card-foreground"
         )}
       >
-        {/* Text Content */}
         {message.data.type === "text" && message.data.content && (
           <p className="text-sm whitespace-pre-wrap">{message.data.content}</p>
         )}
 
-        {/* Table Data */}
         {message.data.type === "table" &&
           message.data.tableData &&
           message.data.tableColumns && (
@@ -114,12 +116,10 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
             />
           )}
 
-        {/* Detail Card */}
         {message.data.type === "detail" && message.data.detailData && (
           <DetailCard data={message.data.detailData} />
         )}
 
-        {/* Actions */}
         {message.data.actions && message.data.actions.length > 0 && (
           <div className="flex gap-2 mt-3 flex-wrap">
             {message.data.actions.map((action, index) => (
@@ -145,7 +145,6 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
         </div>
       </div>
 
-      {/* MODIFIED: For bot messages, the button comes after visually */}
       {!isUser && (
           <Button
             variant="ghost"
@@ -160,6 +159,6 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
             )}
           </Button>
       )}
-    </div>
+    </motion.div>
   );
 };

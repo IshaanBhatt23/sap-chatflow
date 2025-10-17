@@ -35,17 +35,20 @@ export const ChatInput = ({ onSendMessage, onFileUpload, disabled }: ChatInputPr
   };
 
   return (
-    <div className="border-t border-border bg-background p-4">
-      <div className="flex items-center gap-2 max-w-4xl mx-auto">
+    // The outer padding remains the same
+    <div className="border-t border-border bg-background px-4 py-6 sm:py-8">
+      {/* MODIFIED: Removed max-w-4xl and mx-auto to allow full width */}
+      <div className="relative flex items-center gap-4">
         <label htmlFor="file-upload" className="cursor-pointer">
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="icon"
             disabled={disabled}
             onClick={() => document.getElementById("file-upload")?.click()}
+            className="h-14 w-14 flex-shrink-0"
           >
-            <Paperclip className="h-4 w-4" />
+            <Paperclip className="h-7 w-7 text-muted-foreground" />
           </Button>
           <input
             id="file-upload"
@@ -62,16 +65,16 @@ export const ChatInput = ({ onSendMessage, onFileUpload, disabled }: ChatInputPr
           onKeyPress={handleKeyPress}
           placeholder="Ask about anything in SAP..."
           disabled={disabled}
-          className="flex-1"
+          className="flex-1 h-16 rounded-full bg-muted px-7 text-xl" 
         />
 
         <Button
           onClick={handleSend}
           disabled={!message.trim() || disabled}
           size="icon"
-          className="bg-accent hover:bg-accent/90"
+          className="bg-accent hover:bg-accent/90 h-14 w-14 flex-shrink-0 rounded-full"
         >
-          <Send className="h-4 w-4" />
+          <Send className="h-7 w-7" />
         </Button>
       </div>
     </div>
