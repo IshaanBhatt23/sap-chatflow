@@ -122,7 +122,6 @@ export const ChatHistory = ({
                   </div>
                 </button>
 
-                {/* --- MODIFICATION START --- */}
                 {/* Only show icons when NOT editing this session */}
                 {editingSessionId !== session.id && (
                   <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center rounded-md">
@@ -135,19 +134,35 @@ export const ChatHistory = ({
                     >
                       <Pencil className="h-4 w-4" />
                     </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteSession(session.id);
-                      }}
-                      className="p-1.5 rounded-md text-primary-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/20 hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    
+                    {/* --- MODIFICATION: The delete button is now wrapped in a confirmation dialog --- */}
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button
+                          onClick={(e) => e.stopPropagation()} // Prevent the chat from being selected
+                          className="p-1.5 rounded-md text-primary-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/20 hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Do you really want to delete this conversation?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete this conversation.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => onDeleteSession(session.id)}>
+                            Continue
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                    
                   </div>
                 )}
-                {/* --- MODIFICATION END --- */}
-
               </div>
             ))}
           </div>
