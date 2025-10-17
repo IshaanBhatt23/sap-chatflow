@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ChatHistory } from "@/components/ChatHistory";
 import { ChatWindow } from "@/components/ChatWindow";
 import { ChatInput } from "@/components/ChatInput";
@@ -17,72 +17,76 @@ const Index = () => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [isConnected] = useState(true);
+  const initialized = useRef(false);
 
-  // Load chat sessions from localStorage on mount
+  // --- Load from localStorage or auto-start chat ---
   useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+
     try {
       const savedSessions = localStorage.getItem("chatSessions");
       if (savedSessions) {
-        const parsedSessions = JSON.parse(savedSessions);
-        if (parsedSessions.length > 0) {
-          setSessions(parsedSessions);
-          setActiveSessionId(parsedSessions[0].id);
-        } else {
-          handleNewChat();
+        const parsed = JSON.parse(savedSessions);
+        if (parsed.length > 0) {
+          setSessions(parsed);
+          setActiveSessionId(parsed[0].id);
+          return;
         }
-      } else {
-        handleNewChat();
       }
-    } catch (error) {
-      console.error("Failed to load chat sessions from localStorage:", error);
-      handleNewChat();
+    } catch (err) {
+      console.error("Error loading chat sessions:", err);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
-  // Save chats to localStorage whenever sessions change
-  useEffect(() => {
-    if (sessions.length > 0) {
-      localStorage.setItem("chatSessions", JSON.stringify(sessions));
-    } else {
-      localStorage.removeItem("chatSessions"); // Clear when sessions empty
-    }
-  }, [sessions]);
-
-  // Start a new chat session
-  const handleNewChat = () => {
+    // If no saved sessions, create a new one
     const newSession: ChatSession = {
       id: Date.now().toString(),
       title: "New Conversation",
       timestamp: "Just now",
-      messages: [],
+      messages: [], // MODIFIED: Removed the initial greeting message
     };
-    setSessions((prevSessions) => [newSession, ...prevSessions]);
+
+    setSessions([newSession]);
     setActiveSessionId(newSession.id);
-    toast({
-      title: "New chat started",
-      description: "Ready to help with your SAP queries",
-    });
-  };
+  }, []);
 
-  // Select an existing chat session
-  const handleSelectSession = (id: string) => {
-    setActiveSessionId(id);
-  };
-
-  // Delete a specific chat session
-  const handleDeleteSession = (id: string) => {
-    setSessions((prev) => prev.filter((session) => session.id !== id));
-    if (activeSessionId === id) {
-      setActiveSessionId(null);
+  // --- Persist sessions ---
+  useEffect(() => {
+    if (sessions.length > 0) {
+      localStorage.setItem("chatSessions", JSON.stringify(sessions));
+    } else {
+      localStorage.removeItem("chatSessions");
     }
+  }, [sessions]);
+
+  // --- Create new chat session ---
+  const handleNewChat = (showToast: boolean = true) => {
+    const newSession: ChatSession = {
+      id: Date.now().toString(),
+      title: "New Conversation",
+      timestamp: "Just now",
+      messages: [], // MODIFIED: Removed the initial greeting message
+    };
+    setSessions((prev) => [newSession, ...prev]);
+    setActiveSessionId(newSession.id);
+
+    // REMOVED: The toast notification is now gone
+    if (showToast) {
+      // toast({ ... }) was here
+    }
+  };
+
+  const handleSelectSession = (id: string) => setActiveSessionId(id);
+
+  const handleDeleteSession = (id: string) => {
+    setSessions((prev) => prev.filter((s) => s.id !== id));
+    if (activeSessionId === id) setActiveSessionId(null);
     toast({
       title: "Chat deleted",
       description: "This conversation has been removed.",
     });
   };
 
-  // Clear all chat sessions
   const handleClearAll = () => {
     setSessions([]);
     setActiveSessionId(null);
@@ -91,42 +95,42 @@ const Index = () => {
       title: "All conversations cleared",
       description: "Your chat history has been deleted.",
     });
+
+    setTimeout(() => handleNewChat(false), 300);
   };
 
-  // Send a message and simulate a bot response
+  // --- Send Message ---
   const handleSendMessage = (messageText: string) => {
-    if (!activeSessionId) return;
+    if (!activeSessionId) {
+      handleNewChat(false);
+      return setTimeout(() => handleSendMessage(messageText), 50);
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
-      data: {
-        type: "text",
-        content: messageText,
-      },
+      data: { type: "text", content: messageText },
       timestamp: new Date().toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
       }),
     };
 
-    // Update current session with user's message
-    setSessions((prevSessions) =>
-      prevSessions.map((session) =>
-        session.id === activeSessionId
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.id === activeSessionId
           ? {
-              ...session,
+              ...s,
               title:
-                session.messages.length === 0
+                s.messages.length < 1 // MODIFIED: Check for < 1 since there's no greeting
                   ? messageText.substring(0, 35)
-                  : session.title,
-              messages: [...session.messages, userMessage],
+                  : s.title,
+              messages: [...s.messages, userMessage],
             }
-          : session
+          : s
       )
     );
 
-    // Simulate bot reply
     setTimeout(() => {
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -138,110 +142,36 @@ const Index = () => {
         }),
       };
 
-      setSessions((prevSessions) =>
-        prevSessions.map((session) =>
-          session.id === activeSessionId
-            ? { ...session, messages: [...session.messages, botMessage] }
-            : session
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === activeSessionId
+            ? { ...s, messages: [...s.messages, botMessage] }
+            : s
         )
       );
-    }, 1000);
+    }, 800);
   };
 
-  // Simple rule-based bot
+  // --- Bot Logic ---
   const generateBotResponse = (userMessage: string): Message["data"] => {
-    const lowerMessage = userMessage.toLowerCase();
-    if (lowerMessage.includes("stock") || lowerMessage.includes("material")) {
-      return {
-        type: "detail",
-        detailData: {
-          Material: "M-01",
-          Description: "Industrial Pump",
-          Plant: "1000",
-          "Stock Level": "245 units",
-          "Storage Location": "Warehouse A",
-          "Last Updated": "Today, 10:30 AM",
-        },
-      };
-    } else if (
-      lowerMessage.includes("sales order") ||
-      lowerMessage.includes("open")
-    ) {
-      return {
-        type: "table",
-        tableColumns: ["Order #", "Customer", "Amount", "Status"],
-        tableData: [
-          {
-            "Order #": "5021",
-            Customer: "TechCorp Inc.",
-            Amount: "$15,420",
-            Status: "Processing",
-          },
-          {
-            "Order #": "5022",
-            Customer: "Global Systems",
-            Amount: "$28,100",
-            Status: "Pending",
-          },
-          {
-            "Order #": "5023",
-            Customer: "Innovate Ltd.",
-            Amount: "$9,870",
-            Status: "Approved",
-          },
-        ],
-      };
-    } else if (
-      lowerMessage.includes("leave") ||
-      lowerMessage.includes("request")
-    ) {
-      return {
-        type: "text",
-        content:
-          "I can help you create a leave request. I've prepared a draft for a 3-day leave starting tomorrow. Please review and confirm:",
-        actions: [
-          { label: "Approve & Submit", variant: "default", onClick: () => {} },
-          { label: "Edit Dates", variant: "outline", onClick: () => {} },
-          { label: "Cancel", variant: "destructive", onClick: () => {} },
-        ],
-      };
-    } else if (lowerMessage.includes("purchase order")) {
-      return {
-        type: "detail",
-        detailData: {
-          "PO Number": "4500017123",
-          Vendor: "Siemens AG",
-          "Created Date": "2025-01-10",
-          "Total Amount": "$42,500",
-          Status: "Approved",
-          "Delivery Date": "2025-01-20",
-        },
-      };
-    } else {
-      return {
-        type: "text",
-        content:
-          "I'm here to help with SAP queries. You can ask me about stock levels, sales orders, purchase orders, leave requests, and more.",
-      };
+    const msg = userMessage.toLowerCase();
+    if (msg.includes("stock") || msg.includes("material")) {
+      return { type: "detail", detailData: { Material: "M-01", Description: "Industrial Pump", Plant: "1000", "Stock Level": "245 units", "Storage Location": "Warehouse A", "Last Updated": "Today, 10:30 AM" } };
+    } else if (msg.includes("sales order") || msg.includes("open")) {
+      return { type: "table", tableColumns: ["Order #", "Customer", "Amount", "Status"], tableData: [{ "Order #": "5021", Customer: "TechCorp Inc.", Amount: "$15,420", Status: "Processing" }, { "Order #": "5022", Customer: "Global Systems", Amount: "$28,100", Status: "Pending" }, { "Order #": "5023", Customer: "Innovate Ltd.", Amount: "$9,870", Status: "Approved" }] };
+    } else if (msg.includes("leave") || msg.includes("request")) {
+      return { type: "text", content: "I can help you create a leave request. Here's a draft for a 3-day leave starting tomorrow. Please review:", actions: [{ label: "Approve & Submit", variant: "default", onClick: () => {} }, { label: "Edit Dates", variant: "outline", onClick: () => {} }, { label: "Cancel", variant: "destructive", onClick: () => {} }] };
+    } else if (msg.includes("purchase order")) {
+      return { type: "detail", detailData: { "PO Number": "4500017123", Vendor: "Siemens AG", "Created Date": "2025-01-10", "Total Amount": "$42,500", Status: "Approved", "Delivery Date": "2025-01-20" } };
     }
+    return { type: "text", content: "I'm here to help with SAP queries — try asking about stock levels, sales orders, purchase orders, or leave requests." };
   };
 
-  // File upload handler
-  const handleFileUpload = (file: File) => {
-    toast({
-      title: "File uploaded",
-      description: `${file.name} has been processed`,
-    });
-  };
+  const handleFileUpload = (file: File) =>
+    toast({ title: "File uploaded", description: `${file.name} processed.` });
 
-  const handlePromptClick = (prompt: string) => {
-    handleSendMessage(prompt);
-  };
-
-  // Get current active chat
-  const activeSession = sessions.find(
-    (session) => session.id === activeSessionId
-  );
+  const handlePromptClick = (prompt: string) => handleSendMessage(prompt);
+  const activeSession = sessions.find((s) => s.id === activeSessionId);
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
@@ -249,10 +179,10 @@ const Index = () => {
         <ChatHistory
           sessions={sessions}
           activeSessionId={activeSessionId}
-          onNewChat={handleNewChat}
+          onNewChat={() => handleNewChat()}
           onSelectSession={handleSelectSession}
           onDeleteSession={handleDeleteSession}
-          onClearAll={handleClearAll} // ✅ Added here
+          onClearAll={handleClearAll}
         />
       </div>
 
