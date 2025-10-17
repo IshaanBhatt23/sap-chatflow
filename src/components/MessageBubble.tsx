@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { DataTableCard } from "./DataTableCard";
 import { DetailCard } from "./DetailCard";
 import { Button } from "@/components/ui/button";
+import { Copy, Check } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export interface MessageAction {
   label: string;
@@ -31,12 +34,66 @@ interface MessageBubbleProps {
 
 export const MessageBubble = ({ message }: MessageBubbleProps) => {
   const isUser = message.role === "user";
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    let textToCopy = "";
+    switch (message.data.type) {
+      case "text":
+        textToCopy = message.data.content || "";
+        break;
+      case "detail":
+        textToCopy = Object.entries(message.data.detailData || {})
+          .map(([key, value]) => `${key}: ${value}`)
+          .join("\n");
+        break;
+      case "table":
+        const headers = message.data.tableColumns?.join("\t|\t") || "";
+        const rows =
+          message.data.tableData
+            ?.map((row) =>
+              message.data.tableColumns?.map((col) => row[col]).join("\t|\t")
+            )
+            .join("\n") || "";
+        textToCopy = `${headers}\n${"-".repeat(headers.length * 1.5)}\n${rows}`;
+        break;
+      default:
+        break;
+    }
+
+    if (textToCopy) {
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        setCopied(true);
+        toast({ title: "Copied to clipboard!" });
+        setTimeout(() => setCopied(false), 2000);
+      });
+    }
+  };
 
   return (
-    <div className={cn("flex w-full mb-4", isUser ? "justify-end" : "justify-start")}>
+    // MODIFIED: This container is now the relative group for positioning
+    <div className={cn("group relative flex w-full mb-4 items-end", isUser ? "justify-end" : "justify-start")}>
+      {/* MODIFIED: For user messages, the button comes first visually */}
+      {isUser && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleCopy}
+          className="h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity mr-2"
+        >
+          {copied ? (
+            <Check className="h-4 w-4 text-success" />
+          ) : (
+            <Copy className="h-4 w-4 text-muted-foreground" />
+          )}
+        </Button>
+      )}
+
+      {/* The message bubble itself */}
       <div
         className={cn(
-          "max-w-[80%] rounded-lg px-4 py-3",
+          "max-w-[80%] rounded-lg px-4 pt-3 pb-2",
           isUser
             ? "bg-chat-user text-accent-foreground"
             : "bg-chat-bot text-card-foreground"
@@ -79,11 +136,30 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
           </div>
         )}
 
-        {/* Timestamp */}
-        <p className={cn("text-xs mt-2 opacity-60")}>
-          {message.timestamp}
-        </p>
+        <div className="flex items-center justify-end mt-2 h-5">
+          <div className="flex-grow flex items-center">
+            <p className={cn("text-xs opacity-60")}>
+              {message.timestamp}
+            </p>
+          </div>
+        </div>
       </div>
+
+      {/* MODIFIED: For bot messages, the button comes after visually */}
+      {!isUser && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleCopy}
+            className="h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity ml-2"
+          >
+            {copied ? (
+              <Check className="h-4 w-4 text-success" />
+            ) : (
+              <Copy className="h-4 w-4 text-muted-foreground" />
+            )}
+          </Button>
+      )}
     </div>
   );
 };
