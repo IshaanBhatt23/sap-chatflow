@@ -25,7 +25,7 @@ export const WelcomeScreen = ({ onPromptClick }: WelcomeScreenProps) => {
         <p className="text-base text-muted-foreground leading-relaxed">
           You can ask me to{" "}
           <span className="font-medium text-accent">check stock levels</span>,{" "}
-          <span className="font-medium text-accent">find sales orders</span>, or{" "}
+          <span className="font-medium text-accent">find sales orders</span> or{" "}
           <span className="font-medium text-accent">approve requests</span>.
         </p>
       </div>
