@@ -154,9 +154,10 @@ const Index = () => {
         s.id === activeSessionId
           ? {
               ...s,
-              title: s.messages.length < 1
-                ? messageText.substring(0, 35)
-                : s.title,
+              title:
+                s.messages.length < 1
+                  ? messageText.substring(0, 35)
+                  : s.title,
               messages: [...s.messages, userMessage],
             }
           : s
@@ -297,11 +298,10 @@ const Index = () => {
           isBotTyping={isBotTyping}
           onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
         />
-        {/* 🔹 Add key={activeSessionId} so ChatInput refocuses on new chat */}
         <ChatInput
-          key={activeSessionId}
           onSendMessage={handleSendMessage}
           onFileUpload={handleFileUpload}
+          activeSessionId={activeSessionId ?? undefined} // 👈 added prop
         />
       </div>
     </div>

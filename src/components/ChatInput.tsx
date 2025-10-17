@@ -7,16 +7,22 @@ interface ChatInputProps {
   onSendMessage: (message: string) => void;
   onFileUpload: (file: File) => void;
   disabled?: boolean;
+  activeSessionId?: string; // 👈 added
 }
 
-export const ChatInput = ({ onSendMessage, onFileUpload, disabled }: ChatInputProps) => {
+export const ChatInput = ({
+  onSendMessage,
+  onFileUpload,
+  disabled,
+  activeSessionId, // 👈 added
+}: ChatInputProps) => {
   const [message, setMessage] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // 🔹 Focus when component mounts (only happens when a new chat is created)
+  // 🔹 Focus whenever the active chat session changes (like after clear all or new chat)
   useEffect(() => {
     inputRef.current?.focus();
-  }, []);
+  }, [activeSessionId]); // 👈 dependency added
 
   const handleSend = () => {
     if (message.trim() && !disabled) {
