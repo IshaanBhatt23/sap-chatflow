@@ -4,7 +4,7 @@ import { MessageBubble, Message } from "./MessageBubble"
 import { WelcomeScreen } from "./WelcomeScreen"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Sun, Moon, Github, Linkedin, Globe } from "lucide-react" // Removed UserCircle, added Globe
+import { Sun, Moon, Github, Linkedin, Globe, Menu } from "lucide-react" // NEW: Added Menu icon
 import { useTheme } from "next-themes"
 import { motion, AnimatePresence } from "framer-motion"
 import {
@@ -14,12 +14,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 
-// Interface and TypingIndicator component remain the same...
 interface ChatWindowProps {
   messages: Message[]
   onPromptClick: (prompt: string) => void
   isConnected: boolean
-  isBotTyping: boolean 
+  isBotTyping: boolean
+  onToggleSidebar: () => void; // NEW: Add toggle function to props
 }
 
 const TypingIndicator = () => (
@@ -50,14 +50,13 @@ const TypingIndicator = () => (
   </motion.div>
 );
 
-export const ChatWindow = ({ messages, onPromptClick, isConnected, isBotTyping }: ChatWindowProps) => {
+export const ChatWindow = ({ messages, onPromptClick, isConnected, isBotTyping, onToggleSidebar }: ChatWindowProps) => { // NEW: Destructure onToggleSidebar
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [isNearBottom, setIsNearBottom] = useState(true)
   const firstRender = useRef(true)
   const { theme, setTheme } = useTheme()
 
-  // Scroll logic remains the same...
   const handleScroll = () => {
     const scrollEl = scrollAreaRef.current
     if (!scrollEl) return
@@ -82,8 +81,18 @@ export const ChatWindow = ({ messages, onPromptClick, isConnected, isBotTyping }
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="border-b border-border bg-background px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="border-b border-border bg-background px-4 md:px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-2 md:gap-3">
+          {/* NEW: Hamburger menu button for mobile */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden" // Only visible on screens smaller than md
+            onClick={onToggleSidebar}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+
           <h2 className="text-xl font-semibold text-primary">SAP Assistant</h2>
           <Badge
             variant={isConnected ? "default" : "destructive"}
@@ -129,10 +138,8 @@ export const ChatWindow = ({ messages, onPromptClick, isConnected, isBotTyping }
             </Tooltip>
           </TooltipProvider>
 
-          {/* NEW: Added a visual separator */}
           <div className="h-6 w-px bg-border mx-2"></div>
 
-          {/* Theme Toggle Button (restored) */}
           <Button
             variant="ghost"
             size="icon"

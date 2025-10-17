@@ -4,6 +4,7 @@ import { ChatWindow } from "@/components/ChatWindow";
 import { ChatInput } from "@/components/ChatInput";
 import { Message } from "@/components/MessageBubble";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface ChatSession {
   id: string;
@@ -19,8 +20,9 @@ const Index = () => {
   const [isConnected] = useState(true);
   const [isBotTyping, setIsBotTyping] = useState(false);
   const initialized = useRef(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // --- Load from localStorage or auto-start chat ---
+  // --- MODIFIED: This hook is now smarter about starting a new chat ---
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
@@ -28,19 +30,28 @@ const Index = () => {
     try {
       const savedSessions = localStorage.getItem("chatSessions");
       if (savedSessions) {
-        const parsed = JSON.parse(savedSessions);
-        if (parsed.length > 0) {
-          setSessions(parsed);
-          setActiveSessionId(parsed[0].id);
-          return;
+        const parsedSessions = JSON.parse(savedSessions);
+        if (parsedSessions.length > 0) {
+          // --- NEW LOGIC START ---
+          // Check if the most recent chat from the last session is empty.
+          const latestSession = parsedSessions[0];
+          if (latestSession && latestSession.messages.length === 0) {
+            // If it's empty, just load the sessions as-is.
+            setSessions(parsedSessions);
+            setActiveSessionId(latestSession.id);
+            return;
+          }
+          // --- NEW LOGIC END ---
         }
       }
     } catch (err) {
       console.error("Error loading chat sessions:", err);
     }
 
-    // If no saved sessions, create the very first chat
+    // If there are no saved sessions, OR if the last session was not empty,
+    // then create a new session on top.
     handleNewChat(false);
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -55,120 +66,100 @@ const Index = () => {
 
   // --- Create new chat session ---
   const handleNewChat = (showToast: boolean = true) => {
-    // Check if the most recent session is empty
     const latestSession = sessions[0];
-    if (latestSession && latestSession.messages.length === 0) {
-      // MODIFIED: The toast notification has been removed, but the logic remains.
-      return; // Stop the function from creating a new chat
+    if (latestSession && latestSession.messages.length === 0 && sessions.length > 0) {
+        if (showToast) {
+            toast({
+                title: "Current chat is empty",
+                description: "Please send a message before starting a new chat.",
+            });
+        }
+        return;
     }
 
-    const newSession: ChatSession = {
-      id: Date.now().toString(),
-      title: "New Conversation",
-      timestamp: "Just now",
-      messages: [],
-    };
-    setSessions((prev) => [newSession, ...prev]);
+    const newSession: ChatSession = { id: Date.now().toString(), title: "New Conversation", timestamp: "Just now", messages: [] };
+    
+    setSessions((prev) => (prev.length > 0 ? [newSession, ...prev] : [newSession]));
     setActiveSessionId(newSession.id);
 
     if (showToast) {
-       toast({
-         title: "New chat started",
-         description: "Ready to help with your SAP queries",
-       });
+       toast({ title: "New chat started", description: "Ready to help with your SAP queries" });
     }
   };
 
-  const handleSelectSession = (id: string) => setActiveSessionId(id);
+  const handleSelectSession = (id: string) => {
+    setActiveSessionId(id);
+    setIsSidebarOpen(false);
+  }
 
-  // MODIFIED: Ensures app remains usable after deleting the last chat
   const handleDeleteSession = (id: string) => {
     const updatedSessions = sessions.filter((s) => s.id !== id);
     setSessions(updatedSessions);
-
     if (activeSessionId === id) {
       if (updatedSessions.length > 0) {
-        // If other chats exist, make the first one active
         setActiveSessionId(updatedSessions[0].id);
       } else {
-        // If no chats are left, create a new one
         handleNewChat(false);
       }
     }
-    toast({
-      title: "Chat deleted",
-      description: "This conversation has been removed.",
-    });
+    toast({ title: "Chat deleted", description: "This conversation has been removed." });
   };
 
-  // MODIFIED: Ensures app remains usable after clearing all
+  // --- MODIFIED: The clear all handler is now more robust ---
   const handleClearAll = () => {
-    setSessions([]);
-    // Immediately create a new chat to ensure there's always an active session
-    handleNewChat(false);
+    // Create the single new session that will remain after clearing
+    const newSession: ChatSession = { 
+      id: Date.now().toString(), 
+      title: "New Conversation", 
+      timestamp: "Just now", 
+      messages: [] 
+    };
+    
+    // Directly set the state to be ONLY this new session
+    setSessions([newSession]);
+    setActiveSessionId(newSession.id);
+
     toast({
       title: "All conversations cleared",
-      description: "Your chat history has been deleted.",
+      description: "A new chat has been started for you.",
     });
   };
   
   const handleRenameSession = (id: string, newTitle: string) => {
-    setSessions((prev) =>
-      prev.map((session) =>
-        session.id === id ? { ...session, title: newTitle } : session
-      )
-    );
-    toast({
-      title: "Chat renamed",
-      description: `Conversation has been renamed to "${newTitle}".`,
-    });
+    setSessions((prev) => prev.map((session) => (session.id === id ? { ...session, title: newTitle } : session)));
+    toast({ title: "Chat renamed", description: `Conversation has been renamed to "${newTitle}".` });
   };
 
-  // --- Send Message ---
   const handleSendMessage = (messageText: string) => {
     if (!activeSessionId) {
       handleNewChat(false);
       return setTimeout(() => handleSendMessage(messageText), 50);
     }
-
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
       data: { type: "text", content: messageText },
-      timestamp: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
-
     setSessions((prev) =>
       prev.map((s) =>
         s.id === activeSessionId
           ? {
               ...s,
-              title:
-                s.messages.length < 1
-                  ? messageText.substring(0, 35)
-                  : s.title,
+              title: s.messages.length < 1 ? messageText.substring(0, 35) : s.title,
               messages: [...s.messages, userMessage],
             }
           : s
       )
     );
-
     setIsBotTyping(true);
-
     setTimeout(() => {
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         data: generateBotResponse(messageText),
-        timestamp: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
-
       setSessions((prev) =>
         prev.map((s) =>
           s.id === activeSessionId
@@ -180,7 +171,6 @@ const Index = () => {
     }, 800);
   };
 
-  // --- Bot Logic ---
   const generateBotResponse = (userMessage: string): Message["data"] => {
     const msg = userMessage.toLowerCase();
     if (msg.includes("stock") || msg.includes("material")) {
@@ -202,8 +192,13 @@ const Index = () => {
   const activeSession = sessions.find((s) => s.id === activeSessionId);
 
   return (
-    <div className="flex h-screen w-full overflow-hidden">
-      <div className="w-80 border-r border-border flex-shrink-0">
+    <div className="relative flex h-screen w-full overflow-hidden">
+      <div
+        className={cn(
+          "absolute top-0 left-0 h-full w-80 border-r border-border bg-background transition-transform duration-300 ease-in-out md:relative md:translate-x-0 z-20",
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
         <ChatHistory
           sessions={sessions}
           activeSessionId={activeSessionId}
@@ -215,12 +210,20 @@ const Index = () => {
         />
       </div>
 
+      {isSidebarOpen && (
+        <div
+          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 bg-black/60 z-10 md:hidden"
+        />
+      )}
+
       <div className="flex-1 flex flex-col">
         <ChatWindow
           messages={activeSession?.messages || []}
           onPromptClick={handlePromptClick}
           isConnected={isConnected}
           isBotTyping={isBotTyping}
+          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
         />
         <ChatInput
           onSendMessage={handleSendMessage}
