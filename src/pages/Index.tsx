@@ -17,6 +17,7 @@ const Index = () => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [isConnected] = useState(true);
+  const [isBotTyping, setIsBotTyping] = useState(false);
   const initialized = useRef(false);
 
   // --- Load from localStorage or auto-start chat ---
@@ -43,7 +44,7 @@ const Index = () => {
       id: Date.now().toString(),
       title: "New Conversation",
       timestamp: "Just now",
-      messages: [], // MODIFIED: Removed the initial greeting message
+      messages: [],
     };
 
     setSessions([newSession]);
@@ -65,14 +66,16 @@ const Index = () => {
       id: Date.now().toString(),
       title: "New Conversation",
       timestamp: "Just now",
-      messages: [], // MODIFIED: Removed the initial greeting message
+      messages: [],
     };
     setSessions((prev) => [newSession, ...prev]);
     setActiveSessionId(newSession.id);
 
-    // REMOVED: The toast notification is now gone
     if (showToast) {
-      // toast({ ... }) was here
+       toast({
+         title: "New chat started",
+         description: "Ready to help with your SAP queries",
+       });
     }
   };
 
@@ -98,6 +101,19 @@ const Index = () => {
 
     setTimeout(() => handleNewChat(false), 300);
   };
+  
+  // NEW: Function to handle renaming a session
+  const handleRenameSession = (id: string, newTitle: string) => {
+    setSessions((prev) =>
+      prev.map((session) =>
+        session.id === id ? { ...session, title: newTitle } : session
+      )
+    );
+    toast({
+      title: "Chat renamed",
+      description: `Conversation has been renamed to "${newTitle}".`,
+    });
+  };
 
   // --- Send Message ---
   const handleSendMessage = (messageText: string) => {
@@ -122,7 +138,7 @@ const Index = () => {
           ? {
               ...s,
               title:
-                s.messages.length < 1 // MODIFIED: Check for < 1 since there's no greeting
+                s.messages.length < 1
                   ? messageText.substring(0, 35)
                   : s.title,
               messages: [...s.messages, userMessage],
@@ -130,6 +146,8 @@ const Index = () => {
           : s
       )
     );
+
+    setIsBotTyping(true);
 
     setTimeout(() => {
       const botMessage: Message = {
@@ -149,6 +167,7 @@ const Index = () => {
             : s
         )
       );
+      setIsBotTyping(false);
     }, 800);
   };
 
@@ -183,6 +202,7 @@ const Index = () => {
           onSelectSession={handleSelectSession}
           onDeleteSession={handleDeleteSession}
           onClearAll={handleClearAll}
+          onRenameSession={handleRenameSession} // NEW: Pass the rename handler
         />
       </div>
 
@@ -191,6 +211,7 @@ const Index = () => {
           messages={activeSession?.messages || []}
           onPromptClick={handlePromptClick}
           isConnected={isConnected}
+          isBotTyping={isBotTyping}
         />
         <ChatInput
           onSendMessage={handleSendMessage}
