@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, Paperclip } from "lucide-react";
@@ -11,11 +11,18 @@ interface ChatInputProps {
 
 export const ChatInput = ({ onSendMessage, onFileUpload, disabled }: ChatInputProps) => {
   const [message, setMessage] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // 🔹 Focus when component mounts (only happens when a new chat is created)
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   const handleSend = () => {
     if (message.trim() && !disabled) {
       onSendMessage(message);
       setMessage("");
+      inputRef.current?.focus(); // Keep focus after sending
     }
   };
 
@@ -35,9 +42,7 @@ export const ChatInput = ({ onSendMessage, onFileUpload, disabled }: ChatInputPr
   };
 
   return (
-    // The outer padding remains the same
     <div className="border-t border-border bg-background px-4 py-6 sm:py-8">
-      {/* MODIFIED: Removed max-w-4xl and mx-auto to allow full width */}
       <div className="relative flex items-center gap-4">
         <label htmlFor="file-upload" className="cursor-pointer">
           <Button
@@ -60,12 +65,13 @@ export const ChatInput = ({ onSendMessage, onFileUpload, disabled }: ChatInputPr
         </label>
 
         <Input
+          ref={inputRef}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyPress={handleKeyPress}
           placeholder="Ask about anything in SAP..."
           disabled={disabled}
-          className="flex-1 h-16 rounded-full bg-muted px-7 text-xl" 
+          className="flex-1 h-16 rounded-full bg-muted px-7 text-xl"
         />
 
         <Button
