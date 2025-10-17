@@ -39,16 +39,9 @@ const Index = () => {
       console.error("Error loading chat sessions:", err);
     }
 
-    // If no saved sessions, create a new one
-    const newSession: ChatSession = {
-      id: Date.now().toString(),
-      title: "New Conversation",
-      timestamp: "Just now",
-      messages: [],
-    };
-
-    setSessions([newSession]);
-    setActiveSessionId(newSession.id);
+    // If no saved sessions, create the very first chat
+    handleNewChat(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // --- Persist sessions ---
@@ -62,6 +55,13 @@ const Index = () => {
 
   // --- Create new chat session ---
   const handleNewChat = (showToast: boolean = true) => {
+    // Check if the most recent session is empty
+    const latestSession = sessions[0];
+    if (latestSession && latestSession.messages.length === 0) {
+      // MODIFIED: The toast notification has been removed, but the logic remains.
+      return; // Stop the function from creating a new chat
+    }
+
     const newSession: ChatSession = {
       id: Date.now().toString(),
       title: "New Conversation",
@@ -81,28 +81,37 @@ const Index = () => {
 
   const handleSelectSession = (id: string) => setActiveSessionId(id);
 
+  // MODIFIED: Ensures app remains usable after deleting the last chat
   const handleDeleteSession = (id: string) => {
-    setSessions((prev) => prev.filter((s) => s.id !== id));
-    if (activeSessionId === id) setActiveSessionId(null);
+    const updatedSessions = sessions.filter((s) => s.id !== id);
+    setSessions(updatedSessions);
+
+    if (activeSessionId === id) {
+      if (updatedSessions.length > 0) {
+        // If other chats exist, make the first one active
+        setActiveSessionId(updatedSessions[0].id);
+      } else {
+        // If no chats are left, create a new one
+        handleNewChat(false);
+      }
+    }
     toast({
       title: "Chat deleted",
       description: "This conversation has been removed.",
     });
   };
 
+  // MODIFIED: Ensures app remains usable after clearing all
   const handleClearAll = () => {
     setSessions([]);
-    setActiveSessionId(null);
-    localStorage.removeItem("chatSessions");
+    // Immediately create a new chat to ensure there's always an active session
+    handleNewChat(false);
     toast({
       title: "All conversations cleared",
       description: "Your chat history has been deleted.",
     });
-
-    setTimeout(() => handleNewChat(false), 300);
   };
   
-  // NEW: Function to handle renaming a session
   const handleRenameSession = (id: string, newTitle: string) => {
     setSessions((prev) =>
       prev.map((session) =>
@@ -202,7 +211,7 @@ const Index = () => {
           onSelectSession={handleSelectSession}
           onDeleteSession={handleDeleteSession}
           onClearAll={handleClearAll}
-          onRenameSession={handleRenameSession} // NEW: Pass the rename handler
+          onRenameSession={handleRenameSession}
         />
       </div>
 
