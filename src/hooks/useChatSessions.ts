@@ -18,38 +18,59 @@ export const useChatSessions = () => {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const initialized = useRef(false);
 
-  // --- This part loads saved chats from the browser's memory ---
+  // --- ✅ THIS IS THE MODIFIED PART ---
+  // This part now loads saved chats and creates a new one on top for every app launch.
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
+
+    // First, create the new, empty session that will be active on every launch.
+    const newSessionOnLoad: ChatSession = {
+      id: Date.now().toString(),
+      title: "New Conversation",
+      timestamp: "Just now",
+      messages: [],
+      pinned: false,
+    };
+
+    let previousSessions: ChatSession[] = [];
     try {
+      // Then, try to load the old chats from memory.
       const saved = localStorage.getItem('chatSessions');
       if (saved) {
-        const parsed = JSON.parse(saved) as ChatSession[];
-        setSessions(parsed);
-        if (parsed.length > 0) {
-          setActiveSessionId(parsed[0].id);
-        } else {
-          // If storage exists but is empty, create a new chat
-          handleNewChat(false);
-        }
-      } else {
-        // If no sessions were ever saved, create the first one
-        handleNewChat(false);
+        previousSessions = JSON.parse(saved) as ChatSession[];
       }
     } catch (err) {
       console.error("Error loading chat sessions:", err);
-      handleNewChat(false);
+      // If loading fails, we'll just have an empty history.
+      previousSessions = [];
     }
+
+    // Set the state: the new empty chat is first, followed by all the old ones.
+    setSessions([newSessionOnLoad, ...previousSessions]);
+
+    // IMPORTANT: Make the brand new chat the active one.
+    setActiveSessionId(newSessionOnLoad.id);
+    
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // This effect should only run once on mount
+  }, []); // This effect should still only run once on mount.
+  // --- END OF MODIFIED PART ---
 
   // --- This part saves chats to the browser's memory whenever they change ---
   useEffect(() => {
     // We check initialized to prevent wiping saved data on the very first render
     if (initialized.current) {
         if (sessions.length > 0) {
-            localStorage.setItem('chatSessions', JSON.stringify(sessions));
+            // We save all but the first (active, empty) session if it has no messages
+            const sessionsToSave = sessions[0]?.messages.length === 0 
+                ? sessions.slice(1) 
+                : sessions;
+            
+            if (sessionsToSave.length > 0) {
+                localStorage.setItem('chatSessions', JSON.stringify(sessionsToSave));
+            } else {
+                localStorage.removeItem('chatSessions');
+            }
         } else {
             localStorage.removeItem('chatSessions');
         }
@@ -60,8 +81,6 @@ export const useChatSessions = () => {
   // --- All of your functions from Index.tsx are moved here ---
 
   const handleNewChat = (showToast = true) => {
-    // --- ✅ THIS IS THE FIX ---
-    // Check if the most recent session is empty before creating a new one.
     const latestSession = sessions[0];
     if (latestSession && latestSession.messages.length === 0 && sessions.length > 0) {
       if (showToast) {
@@ -70,9 +89,8 @@ export const useChatSessions = () => {
           description: "Please send a message before starting a new chat.",
         });
       }
-      return latestSession; // Important: return the existing empty session
+      return latestSession;
     }
-    // --- END OF FIX ---
 
     const newSession: ChatSession = {
       id: Date.now().toString(),
@@ -84,7 +102,7 @@ export const useChatSessions = () => {
     setSessions(prev => [newSession, ...prev]);
     setActiveSessionId(newSession.id);
     if (showToast) toast({ title: "New chat started" });
-    return newSession; // Return the new session so we can use it
+    return newSession;
   };
 
   const handleSelectSession = (id: string) => {
@@ -123,7 +141,6 @@ export const useChatSessions = () => {
     );
   };
   
-  // Helper for exporting chat content
   const formatMessageForExport = (m: Message) => {
     if (m.data.type === "text") return m.data.content;
     if (m.data.type === "detail") return JSON.stringify(m.data.detailData, null, 2);
@@ -136,8 +153,8 @@ export const useChatSessions = () => {
     if (!session) return;
 
     const formatted = [
-      `Chat Title: ${session.title}`,
-      `Date: ${session.timestamp}`,
+      `🗒️ Chat Title: ${session.title}`,
+      `🕒 Date: ${session.timestamp}`,
       "",
       ...session.messages.map(
         (m) => `[${m.timestamp}] ${m.role.toUpperCase()}:\n${formatMessageForExport(m)}`
@@ -155,7 +172,6 @@ export const useChatSessions = () => {
     toast({ title: "Chat exported", description: `Saved as ${session.title}.txt` });
   };
 
-  // This is a new helper function to add messages cleanly
   const addMessageToSession = (sessionId: string, message: Message) => {
     setSessions(prev =>
       prev.map(s => {
@@ -171,7 +187,6 @@ export const useChatSessions = () => {
     );
   };
 
-  // --- This is what the hook gives back to our component ---
   return {
     sessions,
     activeSession: sessions.find(s => s.id === activeSessionId),
