@@ -1,184 +1,47 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { ChatHistory } from "@/components/ChatHistory";
 import { ChatWindow } from "@/components/ChatWindow";
 import { ChatInput } from "@/components/ChatInput";
 import { Message } from "@/components/MessageBubble";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-
-interface ChatSession {
-  id: string;
-  title: string;
-  timestamp: string;
-  messages: Message[];
-  pinned?: boolean;
-}
+import { useChatSessions } from "@/hooks/useChatSessions"; // 👈 STEP 1: Import our new hook
 
 const Index = () => {
   const { toast } = useToast();
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  
+  // 👇 STEP 2: All the complex session logic is replaced by this single line!
+  const {
+    sessions,
+    activeSession,
+    activeSessionId,
+    handleNewChat,
+    handleSelectSession,
+    handleDeleteSession,
+    handleClearAll,
+    handleRenameSession,
+    handleTogglePin,
+    handleExportSession,
+    addMessageToSession,
+  } = useChatSessions();
+
+  // We only need to keep the state that is purely for the UI
   const [isConnected] = useState(true);
   const [isBotTyping, setIsBotTyping] = useState(false);
-  const initialized = useRef(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // --- Load or initialize sessions ---
-  useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
+  // --- 👇 STEP 3: The new, async function to call the AI backend ---
+  const handleSendMessage = async (text: string) => {
+    let currentSessionId = activeSessionId;
 
-    try {
-      const savedSessions = localStorage.getItem("chatSessions");
-      if (savedSessions) {
-        const parsedSessions: ChatSession[] = JSON.parse(savedSessions);
-        setSessions(parsedSessions);
-        if (parsedSessions.length > 0) setActiveSessionId(parsedSessions[0].id);
-        return;
-      }
-    } catch (err) {
-      console.error("Error loading chat sessions:", err);
+    // If there's no active session, our hook handles creating one
+    if (!currentSessionId) {
+      const newSession = handleNewChat(false);
+      currentSessionId = newSession.id;
     }
-
-    handleNewChat(false);
-  }, []);
-
-  // --- Persist sessions ---
-  useEffect(() => {
-    if (sessions.length > 0) {
-      localStorage.setItem("chatSessions", JSON.stringify(sessions));
-    } else {
-      localStorage.removeItem("chatSessions");
-    }
-  }, [sessions]);
-
-  // --- Create new chat session ---
-  const handleNewChat = (showToast: boolean = true) => {
-    const latestSession = sessions[0];
-    if (latestSession && latestSession.messages.length === 0 && sessions.length > 0) {
-      if (showToast) {
-        toast({
-          title: "Current chat is empty",
-          description: "Please send a message before starting a new chat.",
-        });
-      }
-      return;
-    }
-
-    const newSession: ChatSession = {
-      id: Date.now().toString(),
-      title: "New Conversation",
-      timestamp: "Just now",
-      messages: [],
-      pinned: false,
-    };
-
-    setSessions((prev) => [newSession, ...prev]);
-    setActiveSessionId(newSession.id);
-
-    if (showToast) {
-      toast({
-        title: "New chat started",
-        description: "Ready to help with your SAP queries",
-      });
-    }
-  };
-
-  // --- Select, delete, clear, rename handlers ---
-  const handleSelectSession = (id: string) => {
-    setActiveSessionId(id);
-    setIsSidebarOpen(false);
-  };
-
-  const handleDeleteSession = (id: string) => {
-    const updated = sessions.filter((s) => s.id !== id);
-    setSessions(updated);
-    if (activeSessionId === id) {
-      if (updated.length > 0) setActiveSessionId(updated[0].id);
-      else handleNewChat(false);
-    }
-    toast({ title: "Chat deleted", description: "Conversation removed." });
-  };
-
-  const handleClearAll = () => {
-    const newSession: ChatSession = {
-      id: Date.now().toString(),
-      title: "New Conversation",
-      timestamp: "Just now",
-      messages: [],
-      pinned: false,
-    };
-    setSessions([newSession]);
-    setActiveSessionId(newSession.id);
-    toast({ title: "All conversations cleared", description: "Started fresh." });
-  };
-
-  const handleRenameSession = (id: string, newTitle: string) => {
-    setSessions((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, title: newTitle } : s))
-    );
-    toast({ title: "Chat renamed", description: `Renamed to "${newTitle}".` });
-  };
-
-  // --- ✅ Toggle Pin / Unpin ---
-  const handleTogglePin = (id: string) => {
-    setSessions((prev) =>
-      prev.map((s) => {
-        if (s.id === id) {
-          const updated = { ...s, pinned: !s.pinned };
-          toast({
-            title: updated.pinned ? "Chat pinned" : "Chat unpinned",
-            description: updated.pinned
-              ? "Pinned to the top of your list."
-              : "Removed from top of list.",
-          });
-          return updated;
-        }
-        return s;
-      })
-    );
-  };
-
-  // --- ✅ Export Chat ---
-  const handleExportSession = (id: string) => {
-    const session = sessions.find((s) => s.id === id);
-    if (!session) return;
-
-    const formatted = [
-      `🗒️ Chat Title: ${session.title}`,
-      `🕒 Date: ${session.timestamp}`,
-      "",
-      ...session.messages.map(
-        (m) => `[${m.timestamp}] ${m.role.toUpperCase()}:\n${formatMessage(m)}`
-      ),
-    ].join("\n\n");
-
-    const blob = new Blob([formatted], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${session.title.replace(/\s+/g, "_")}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-
-    toast({ title: "Chat exported", description: `Saved as ${session.title}.txt` });
-  };
-
-  const formatMessage = (m: Message) => {
-    if (m.data.type === "text") return m.data.content;
-    if (m.data.type === "detail") return JSON.stringify(m.data.detailData, null, 2);
-    if (m.data.type === "table") return m.data.tableData.map((row) => JSON.stringify(row)).join("\n");
-    return "[Unsupported message type]";
-  };
-
-  // --- Send message logic ---
-  const handleSendMessage = (text: string) => {
-    if (!activeSessionId) {
-      handleNewChat(false);
-      return setTimeout(() => handleSendMessage(text), 50);
-    }
-
+    
+    // Create the user message object
     const userMsg: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -186,64 +49,56 @@ const Index = () => {
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
 
-    setSessions((prev) =>
-      prev.map((s) =>
-        s.id === activeSessionId
-          ? {
-              ...s,
-              title: s.messages.length < 1 ? text.substring(0, 35) : s.title,
-              messages: [...s.messages, userMsg],
-            }
-          : s
-      )
-    );
-
+    // Add user message to the UI immediately
+    addMessageToSession(currentSessionId, userMsg);
     setIsBotTyping(true);
-    setTimeout(() => {
+
+    try {
+      // Prepare the history for the API. We get the latest messages from the 'activeSession' object.
+      const messageHistory = activeSession?.messages.map(msg => ({
+        sender: msg.role,
+        text: (msg.data as { type: 'text'; content: string }).content,
+      })) || [];
+      // Add the new user message to the history we're sending
+      messageHistory.push({ sender: 'user', text: text });
+      
+      const response = await fetch('http://localhost:3001/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageHistory }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.statusText}`);
+      }
+
+      const botResponseData = await response.json(); // e.g., { role: 'assistant', content: '...' }
+
+      // Create the bot message object
       const botMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        data: generateBotResponse(text),
+        data: { type: "text", content: botResponseData.content }, // Get content from the real API response
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
-      setSessions((prev) =>
-        prev.map((s) =>
-          s.id === activeSessionId ? { ...s, messages: [...s.messages, botMsg] } : s
-        )
-      );
-      setIsBotTyping(false);
-    }, 800);
-  };
 
-  const generateBotResponse = (msg: string): Message["data"] => {
-    const text = msg.toLowerCase();
-    if (text.includes("stock"))
-      return {
-        type: "detail",
-        detailData: {
-          Material: "M-01",
-          Description: "Industrial Pump",
-          Plant: "1000",
-          "Stock Level": "245 units",
-          "Storage Location": "Warehouse A",
-        },
-      };
-    if (text.includes("sales"))
-      return {
-        type: "table",
-        tableColumns: ["Order #", "Customer", "Amount", "Status"],
-        tableData: [
-          { "Order #": "5021", Customer: "TechCorp", Amount: "$15,420", Status: "Processing" },
-          { "Order #": "5022", Customer: "Global Systems", Amount: "$28,100", Status: "Pending" },
-        ],
-      };
-    return { type: "text", content: "Ask about stock, sales, or purchase orders." };
+      // Add the bot's response to the UI
+      addMessageToSession(currentSessionId, botMsg);
+
+    } catch (error) {
+      console.error("Failed to get bot response:", error);
+      toast({
+        title: "Error",
+        description: "Could not connect to the assistant. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBotTyping(false); // Stop the typing indicator whether it succeeds or fails
+    }
   };
 
   const handleFileUpload = (file: File) =>
     toast({ title: "File uploaded", description: `${file.name} processed.` });
-
-  const activeSession = sessions.find((s) => s.id === activeSessionId);
 
   return (
     <div className="relative flex h-screen w-full overflow-hidden">
@@ -258,12 +113,15 @@ const Index = () => {
           activeSessionId={activeSessionId}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onNewChat={handleNewChat}
-          onSelectSession={handleSelectSession}
+          onNewChat={() => handleNewChat(true)}
+          onSelectSession={(id) => {
+            handleSelectSession(id);
+            setIsSidebarOpen(false);
+          }}
           onDeleteSession={handleDeleteSession}
           onClearAll={handleClearAll}
           onRenameSession={handleRenameSession}
-          onTogglePin={handleTogglePin}       // ✅ fixed prop name
+          onTogglePin={handleTogglePin}
           onExportSession={handleExportSession}
         />
       </div>
