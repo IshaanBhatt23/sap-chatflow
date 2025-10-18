@@ -22,6 +22,9 @@ const Index = () => {
   const initialized = useRef(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // ✅ Added search state
+  const [searchQuery, setSearchQuery] = useState("");
+
   // --- Load or initialize sessions ---
   useEffect(() => {
     if (initialized.current) return;
@@ -59,6 +62,8 @@ const Index = () => {
 
   // --- Create new chat session ---
   const handleNewChat = (showToast: boolean = true) => {
+    setSearchQuery(""); // ✅ Clear search on new chat
+
     const latestSession = sessions[0];
     if (latestSession && latestSession.messages.length === 0 && sessions.length > 0) {
       if (showToast) {
@@ -264,8 +269,14 @@ const Index = () => {
   const handlePromptClick = (prompt: string) => handleSendMessage(prompt);
   const activeSession = sessions.find((s) => s.id === activeSessionId);
 
+  // ✅ Filter sessions based on search query
+  const filteredSessions = sessions.filter((session) =>
+    session.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="relative flex h-screen w-full overflow-hidden">
+      {/* Sidebar */}
       <div
         className={cn(
           "absolute top-0 left-0 h-full w-80 border-r border-border bg-background transition-transform duration-300 ease-in-out md:relative md:translate-x-0 z-20",
@@ -273,8 +284,10 @@ const Index = () => {
         )}
       >
         <ChatHistory
-          sessions={sessions}
+          sessions={filteredSessions}
           activeSessionId={activeSessionId}
+          searchQuery={searchQuery}             // ✅ Added
+          onSearchChange={setSearchQuery}       // ✅ Added
           onNewChat={() => handleNewChat()}
           onSelectSession={handleSelectSession}
           onDeleteSession={handleDeleteSession}
@@ -283,6 +296,7 @@ const Index = () => {
         />
       </div>
 
+      {/* Overlay for mobile */}
       {isSidebarOpen && (
         <div
           onClick={() => setIsSidebarOpen(false)}
@@ -290,6 +304,7 @@ const Index = () => {
         />
       )}
 
+      {/* Chat window */}
       <div className="flex-1 flex flex-col">
         <ChatWindow
           messages={activeSession?.messages || []}
@@ -301,7 +316,7 @@ const Index = () => {
         <ChatInput
           onSendMessage={handleSendMessage}
           onFileUpload={handleFileUpload}
-          activeSessionId={activeSessionId ?? undefined} // 👈 added prop
+          activeSessionId={activeSessionId ?? undefined}
         />
       </div>
     </div>
