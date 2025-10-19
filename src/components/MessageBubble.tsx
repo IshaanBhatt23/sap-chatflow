@@ -5,7 +5,8 @@ import { DetailCard } from "./DetailCard";
 import { Button } from "@/components/ui/button";
 import { Copy, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { motion } from "framer-motion"; // NEW: Import motion
+import { motion } from "framer-motion";
+import ReactMarkdown from "react-markdown"; // 👈 STEP 1: Import the new tool
 
 export interface MessageAction {
   label: string;
@@ -73,7 +74,6 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
   };
 
   return (
-    // MODIFIED: Wrapped the outer div with motion.div for animation
     <motion.div
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
@@ -88,7 +88,7 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
           className="h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity mr-2"
         >
           {copied ? (
-            <Check className="h-4 w-4 text-success" />
+            <Check className="h-4 w-4 text-green-500" />
           ) : (
             <Copy className="h-4 w-4 text-muted-foreground" />
           )}
@@ -99,13 +99,19 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
         className={cn(
           "max-w-[80%] rounded-lg px-4 pt-3 pb-2",
           isUser
-            ? "bg-chat-user text-accent-foreground"
-            : "bg-chat-bot text-card-foreground"
+            ? "bg-primary text-primary-foreground"
+            : "bg-muted text-card-foreground"
         )}
       >
+        {/* --- 👇 THIS IS THE UPGRADE --- */}
         {message.data.type === "text" && message.data.content && (
-          <p className="text-sm whitespace-pre-wrap">{message.data.content}</p>
+          // We wrap the content in ReactMarkdown. It handles the rest!
+          // The 'prose' classes give it nice default styling for lists, bold, etc.
+          <div className="prose prose-sm dark:prose-invert max-w-none">
+             <ReactMarkdown>{message.data.content}</ReactMarkdown>
+          </div>
         )}
+        {/* --- END OF UPGRADE --- */}
 
         {message.data.type === "table" &&
           message.data.tableData &&
@@ -153,7 +159,7 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
             className="h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity ml-2"
           >
             {copied ? (
-              <Check className="h-4 w-4 text-success" />
+              <Check className="h-4 w-4 text-green-500" />
             ) : (
               <Copy className="h-4 w-4 text-muted-foreground" />
             )}
