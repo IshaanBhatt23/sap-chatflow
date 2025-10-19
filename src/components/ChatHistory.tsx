@@ -156,10 +156,15 @@ export const ChatHistory = ({
                       />
                     ) : (
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium truncate flex items-center gap-1">
-                          {session.title}
+                        <p
+                          className="text-sm font-medium truncate flex items-center gap-1 mr-8"
+                          title={session.title} // tooltip shows full title
+                        >
+                          <span className="truncate max-w-[70%] inline-block align-middle">
+                            {session.title}
+                          </span>
                           {session.pinned && (
-                            <Pin className="h-3.5 w-3.5 text-yellow-400" />
+                            <Pin className="h-3.5 w-3.5 text-yellow-400 flex-shrink-0" />
                           )}
                         </p>
                       </div>
@@ -222,7 +227,9 @@ export const ChatHistory = ({
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Delete this conversation?</AlertDialogTitle>
+                          <AlertDialogTitle>
+                            Delete this conversation?
+                          </AlertDialogTitle>
                           <AlertDialogDescription>
                             This action cannot be undone.
                           </AlertDialogDescription>

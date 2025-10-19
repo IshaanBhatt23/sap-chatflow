@@ -1,16 +1,15 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ChatHistory } from "@/components/ChatHistory";
 import { ChatWindow } from "@/components/ChatWindow";
 import { ChatInput } from "@/components/ChatInput";
 import { Message } from "@/components/MessageBubble";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { useChatSessions } from "@/hooks/useChatSessions"; // 👈 STEP 1: Import our new hook
+import { useChatSessions } from "@/hooks/useChatSessions";
 
 const Index = () => {
   const { toast } = useToast();
   
-  // 👇 STEP 2: All the complex session logic is replaced by this single line!
   const {
     sessions,
     activeSession,
@@ -25,23 +24,30 @@ const Index = () => {
     addMessageToSession,
   } = useChatSessions();
 
-  // We only need to keep the state that is purely for the UI
   const [isConnected] = useState(true);
   const [isBotTyping, setIsBotTyping] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // --- 👇 STEP 3: The new, async function to call the AI backend ---
+  // We create a ref to hold our "stop button" controller.
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const handleSendMessage = async (text: string) => {
+    // If a request is already in progress, cancel it before starting a new one.
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    // Create a new "stop button" for this specific request.
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     let currentSessionId = activeSessionId;
 
-    // If there's no active session, our hook handles creating one
     if (!currentSessionId) {
       const newSession = handleNewChat(false);
       currentSessionId = newSession.id;
     }
     
-    // Create the user message object
     const userMsg: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -49,43 +55,44 @@ const Index = () => {
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
 
-    // Add user message to the UI immediately
     addMessageToSession(currentSessionId, userMsg);
     setIsBotTyping(true);
 
     try {
-      // Prepare the history for the API. We get the latest messages from the 'activeSession' object.
       const messageHistory = activeSession?.messages.map(msg => ({
         sender: msg.role,
         text: (msg.data as { type: 'text'; content: string }).content,
       })) || [];
-      // Add the new user message to the history we're sending
       messageHistory.push({ sender: 'user', text: text });
       
       const response = await fetch('http://localhost:3001/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messageHistory }),
+        // We tell our fetch request about the "stop button".
+        signal: controller.signal,
       });
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.statusText}`);
-      }
+      if (!response.ok) throw new Error(`API error: ${response.statusText}`);
 
-      const botResponseData = await response.json(); // e.g., { role: 'assistant', content: '...' }
+      const botResponseData = await response.json();
 
-      // Create the bot message object
       const botMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        data: { type: "text", content: botResponseData.content }, // Get content from the real API response
+        data: { type: "text", content: botResponseData.content },
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
 
-      // Add the bot's response to the UI
       addMessageToSession(currentSessionId, botMsg);
 
-    } catch (error) {
+    } catch (error: any) {
+      // If the error was caused by our "stop button", we just ignore it silently.
+      if (error.name === 'AbortError') {
+        console.log('Fetch aborted by user action.');
+        return; // Exit the function gracefully
+      }
+
       console.error("Failed to get bot response:", error);
       toast({
         title: "Error",
@@ -93,9 +100,20 @@ const Index = () => {
         variant: "destructive",
       });
     } finally {
-      setIsBotTyping(false); // Stop the typing indicator whether it succeeds or fails
+      setIsBotTyping(false);
     }
   };
+
+  // This hook now watches for when you change or delete chats. 
+  // If a request is running for the old chat, it will be cancelled.
+  useEffect(() => {
+    // This is a "cleanup" function that runs whenever the activeSessionId changes.
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [activeSessionId]);
 
   const handleFileUpload = (file: File) =>
     toast({ title: "File uploaded", description: `${file.name} processed.` });

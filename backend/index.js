@@ -19,7 +19,8 @@ app.post('/api/chat', async (req, res) => {
         - CRITICAL RULE: If a user's request is ambiguous or lacks necessary detail, you MUST ask for the missing information before proceeding.
         - For general SAP questions, provide a clear and concise explanation.
         - You MUST format your responses using Markdown (e.g., use ** for bold, numbered lists for steps, etc.).
-        - Do not answer questions that are not related to SAP.`
+        - Do not answer questions that are not related to SAP.
+        - NEW RULE: Keep your answers as concise as possible. Start with a brief summary, and then use bullet points or numbered lists for details if necessary. Ask the user if they want more detail, rather than providing it all at once.`
     };
     
     const ollamaMessages = messageHistory.map(msg => ({
@@ -44,6 +45,6 @@ app.post('/api/chat', async (req, res) => {
 
 const PORT = 3001;
 app.listen(PORT, () => {
-    console.log(`✅ Backend server is running on http://localhost:${PORT}`);
+    console.log(` Backend server is running on http://localhost:${PORT}`);
     console.log('   Ready to connect to Ollama and your React app!');
 });
