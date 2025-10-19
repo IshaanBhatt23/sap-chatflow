@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { Message } from '@/components/MessageBubble'; // Make sure this path is correct
+import { Message } from '@/components/ui/MessageBubble'; // Corrected path
 
 // This defines what a "ChatSession" looks like
 export interface ChatSession {
@@ -18,13 +18,11 @@ export const useChatSessions = () => {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const initialized = useRef(false);
 
-  // --- ✅ THIS IS THE MODIFIED PART ---
   // This part now loads saved chats and creates a new one on top for every app launch.
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
 
-    // First, create the new, empty session that will be active on every launch.
     const newSessionOnLoad: ChatSession = {
       id: Date.now().toString(),
       title: "New Conversation",
@@ -35,30 +33,23 @@ export const useChatSessions = () => {
 
     let previousSessions: ChatSession[] = [];
     try {
-      // Then, try to load the old chats from memory.
       const saved = localStorage.getItem('chatSessions');
       if (saved) {
         previousSessions = JSON.parse(saved) as ChatSession[];
       }
     } catch (err) {
       console.error("Error loading chat sessions:", err);
-      // If loading fails, we'll just have an empty history.
       previousSessions = [];
     }
 
-    // Set the state: the new empty chat is first, followed by all the old ones.
     setSessions([newSessionOnLoad, ...previousSessions]);
-
-    // IMPORTANT: Make the brand new chat the active one.
     setActiveSessionId(newSessionOnLoad.id);
     
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // This effect should still only run once on mount.
-  // --- END OF MODIFIED PART ---
+  }, []);
 
-  // --- This part saves chats to the browser's memory whenever they change ---
+  // This part saves chats to the browser's memory whenever they change
   useEffect(() => {
-    // We check initialized to prevent wiping saved data on the very first render
     if (initialized.current) {
         if (sessions.length > 0) {
             // We save all but the first (active, empty) session if it has no messages
@@ -77,8 +68,6 @@ export const useChatSessions = () => {
     }
   }, [sessions]);
 
-
-  // --- All of your functions from Index.tsx are moved here ---
 
   const handleNewChat = (showToast = true) => {
     const latestSession = sessions[0];
@@ -142,8 +131,8 @@ export const useChatSessions = () => {
   };
   
   const formatMessageForExport = (m: Message) => {
-    if (m.data.type === "text") return m.data.content;
-    if (m.data.type === "detail") return JSON.stringify(m.data.detailData, null, 2);
+    if (m.data.type === "text" && m.data.content) return m.data.content;
+    if (m.data.type === "detail" && m.data.detailData) return JSON.stringify(m.data.detailData, null, 2);
     if (m.data.type === "table" && m.data.tableData) return m.data.tableData.map((row) => JSON.stringify(row)).join("\n");
     return "[Unsupported message type]";
   };
@@ -151,6 +140,18 @@ export const useChatSessions = () => {
   const handleExportSession = (id: string) => {
     const session = sessions.find((s) => s.id === id);
     if (!session) return;
+    
+    // --- 👇 THIS IS THE FIX ---
+    // Check if the session has any messages before exporting.
+    if (session.messages.length === 0) {
+      toast({
+        title: "Cannot export empty chat",
+        description: "Please send a message before exporting.",
+        variant: "destructive",
+      });
+      return; // Stop the function here
+    }
+    // --- END OF FIX ---
 
     const formatted = [
       `🗒️ Chat Title: ${session.title}`,
