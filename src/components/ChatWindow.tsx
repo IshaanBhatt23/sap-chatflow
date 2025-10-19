@@ -4,7 +4,7 @@ import { MessageBubble, Message } from "./MessageBubble"
 import { WelcomeScreen } from "./WelcomeScreen"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Sun, Moon, Github, Linkedin, Globe, Menu } from "lucide-react" // NEW: Added Menu icon
+import { Sun, Moon, Github, Linkedin, Globe, Menu } from "lucide-react"
 import { useTheme } from "next-themes"
 import { motion, AnimatePresence } from "framer-motion"
 import {
@@ -19,7 +19,7 @@ interface ChatWindowProps {
   onPromptClick: (prompt: string) => void
   isConnected: boolean
   isBotTyping: boolean
-  onToggleSidebar: () => void; // NEW: Add toggle function to props
+  onToggleSidebar: () => void;
 }
 
 const TypingIndicator = () => (
@@ -30,7 +30,7 @@ const TypingIndicator = () => (
     transition={{ duration: 0.3 }}
     className="flex items-center justify-start mb-4"
   >
-    <div className="flex items-center space-x-1.5 rounded-lg bg-chat-bot-bg px-4 py-3">
+    <div className="flex items-center space-x-1.5 rounded-lg bg-muted px-4 py-3">
       <motion.span
         className="h-2 w-2 rounded-full bg-muted-foreground/70"
         animate={{ y: [0, -4, 0] }}
@@ -50,44 +50,29 @@ const TypingIndicator = () => (
   </motion.div>
 );
 
-export const ChatWindow = ({ messages, onPromptClick, isConnected, isBotTyping, onToggleSidebar }: ChatWindowProps) => { // NEW: Destructure onToggleSidebar
-  const scrollAreaRef = useRef<HTMLDivElement>(null)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const [isNearBottom, setIsNearBottom] = useState(true)
-  const firstRender = useRef(true)
-  const { theme, setTheme } = useTheme()
-
-  const handleScroll = () => {
-    const scrollEl = scrollAreaRef.current
-    if (!scrollEl) return
-    const threshold = 80
-    const distanceFromBottom =
-      scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight
-    setIsNearBottom(distanceFromBottom < threshold)
-  }
-
+export const ChatWindow = ({ messages, onPromptClick, isConnected, isBotTyping, onToggleSidebar }: ChatWindowProps) => {
+  const scrollViewportRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Auto-scroll logic
   useEffect(() => {
-    if (!messagesEndRef.current) return
-    if (firstRender.current) {
-      firstRender.current = false
-      messagesEndRef.current.scrollIntoView({ behavior: "auto" })
-      return
-    }
-    if (isNearBottom) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
-    }
-  }, [messages, isBotTyping])
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isBotTyping]);
+
+  const { theme, setTheme } = useTheme();
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Header */}
-      <div className="border-b border-border bg-background px-4 md:px-6 py-4 flex items-center justify-between">
+    // --- THIS IS THE FIX ---
+    // The root container now correctly flexes and sets a zero minimum height,
+    // which is the key to making the inner scrollable area work correctly.
+    <div className="flex flex-col flex-1 min-h-0 bg-background">
+      {/* Header (does not grow or shrink) */}
+      <div className="flex-shrink-0 border-b border-border px-4 md:px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2 md:gap-3">
-          {/* NEW: Hamburger menu button for mobile */}
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden" // Only visible on screens smaller than md
+            className="md:hidden"
             onClick={onToggleSidebar}
           >
             <Menu className="h-5 w-5" />
@@ -96,9 +81,8 @@ export const ChatWindow = ({ messages, onPromptClick, isConnected, isBotTyping, 
           <h2 className="text-xl font-semibold text-primary">SAP Assistant</h2>
           <Badge
             variant={isConnected ? "default" : "destructive"}
-            className={isConnected ? "bg-success hover:bg-success" : ""}
+            className={isConnected ? "bg-green-500 hover:bg-green-500/90 text-white" : ""}
           >
-            <span className="mr-2">●</span>
             {isConnected ? "Connected" : "Disconnected"}
           </Badge>
         </div>
@@ -161,27 +145,25 @@ export const ChatWindow = ({ messages, onPromptClick, isConnected, isBotTyping, 
           </Button>
         </div>
       </div>
-
-      {/* Messages Area */}
-      <ScrollArea
-        ref={scrollAreaRef}
-        className="flex-1 chat-scrollbar"
-        onScrollCapture={handleScroll}
-      >
-        <div className="px-6 py-4">
-          {messages.length === 0 && !isBotTyping ? (
-            <WelcomeScreen onPromptClick={onPromptClick} />
-          ) : (
-            messages.map((message) => (
-              <MessageBubble key={message.id} message={message} />
-            ))
-          )}
-          <AnimatePresence>
-            {isBotTyping && <TypingIndicator />}
-          </AnimatePresence>
-          <div ref={messagesEndRef} />
-        </div>
-      </ScrollArea>
+      
+      {/* This div is now the main scrolling container.
+          - 'flex-1' makes it take all available vertical space.
+          - 'overflow-y-auto' makes it scroll when content is too tall.
+      */}
+      <div ref={scrollViewportRef} className="flex-1 overflow-y-auto p-6">
+        {messages.length === 0 && !isBotTyping ? (
+          <WelcomeScreen onPromptClick={onPromptClick} />
+        ) : (
+          messages.map((message) => (
+            <MessageBubble key={message.id} message={message} />
+          ))
+        )}
+        <AnimatePresence>
+          {isBotTyping && <TypingIndicator />}
+        </AnimatePresence>
+        {/* This empty div is the anchor for our auto-scroll */}
+        <div ref={messagesEndRef} />
+      </div>
     </div>
   )
 }
