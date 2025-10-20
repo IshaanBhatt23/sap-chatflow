@@ -17,8 +17,6 @@ interface MessageBubbleProps {
 }
 
 const LeaveApplicationForm = ({ onSubmit }: { onSubmit?: (data: any) => void }) => {
-  // --- 👇 THIS IS THE FIX (Part 1) ---
-  // We add a new state to track if the form has been submitted.
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [formData, setFormData] = useState({
     employeeName: "",
@@ -26,6 +24,16 @@ const LeaveApplicationForm = ({ onSubmit }: { onSubmit?: (data: any) => void }) 
     endDate: "",
     reason: "",
   });
+  const [error, setError] = useState<string | null>(null);
+
+  // --- 👇 THIS IS THE FIX ---
+  // We now build the date string manually to avoid timezone conversion issues.
+  const todayDate = new Date();
+  const year = todayDate.getFullYear();
+  const month = String(todayDate.getMonth() + 1).padStart(2, '0'); // getMonth() is zero-based
+  const day = String(todayDate.getDate()).padStart(2, '0');
+  const today = `${year}-${month}-${day}`;
+  // --- END OF FIX ---
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -34,9 +42,16 @@ const LeaveApplicationForm = ({ onSubmit }: { onSubmit?: (data: any) => void }) 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (new Date(formData.startDate) > new Date(formData.endDate)) {
+        setError("Start date cannot be after the end date.");
+        return;
+    }
+
     if (onSubmit) {
+        setError(null);
         onSubmit(formData);
-        setIsSubmitted(true); // After submitting, we update the state.
+        setIsSubmitted(true);
     }
   };
 
@@ -50,7 +65,7 @@ const LeaveApplicationForm = ({ onSubmit }: { onSubmit?: (data: any) => void }) 
           name="employeeName"
           value={formData.employeeName}
           onChange={handleChange}
-          disabled={isSubmitted} // Disable input after submission
+          disabled={isSubmitted}
           required
         />
       </div>
@@ -61,9 +76,10 @@ const LeaveApplicationForm = ({ onSubmit }: { onSubmit?: (data: any) => void }) 
             id="startDate"
             name="startDate"
             type="date"
+            min={today}
             value={formData.startDate}
             onChange={handleChange}
-            disabled={isSubmitted} // Disable input after submission
+            disabled={isSubmitted}
             required
           />
         </div>
@@ -73,13 +89,17 @@ const LeaveApplicationForm = ({ onSubmit }: { onSubmit?: (data: any) => void }) 
             id="endDate"
             name="endDate"
             type="date"
+            min={formData.startDate || today}
             value={formData.endDate}
             onChange={handleChange}
-            disabled={isSubmitted} // Disable input after submission
+            disabled={isSubmitted}
             required
           />
         </div>
       </div>
+      
+      {error && <p className="text-sm text-red-500">{error}</p>}
+
       <div className="space-y-2">
         <Label htmlFor="reason">Reason for Leave</Label>
         <Textarea
@@ -87,13 +107,11 @@ const LeaveApplicationForm = ({ onSubmit }: { onSubmit?: (data: any) => void }) 
           name="reason"
           value={formData.reason}
           onChange={handleChange}
-          disabled={isSubmitted} // Disable input after submission
+          disabled={isSubmitted}
           required
         />
       </div>
       
-      {/* --- 👇 THIS IS THE FIX (Part 2) --- */}
-      {/* We only show the button if the form has NOT been submitted. */}
       {!isSubmitted && (
         <Button type="submit" className="w-full mt-2">
             Submit Application
@@ -102,7 +120,6 @@ const LeaveApplicationForm = ({ onSubmit }: { onSubmit?: (data: any) => void }) 
     </form>
   );
 };
-// --- END OF FIX ---
 
 export interface MessageAction {
   label: string;
