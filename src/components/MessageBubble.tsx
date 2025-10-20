@@ -26,14 +26,11 @@ const LeaveApplicationForm = ({ onSubmit }: { onSubmit?: (data: any) => void }) 
   });
   const [error, setError] = useState<string | null>(null);
 
-  // --- 👇 THIS IS THE FIX ---
-  // We now build the date string manually to avoid timezone conversion issues.
   const todayDate = new Date();
   const year = todayDate.getFullYear();
-  const month = String(todayDate.getMonth() + 1).padStart(2, '0'); // getMonth() is zero-based
+  const month = String(todayDate.getMonth() + 1).padStart(2, '0');
   const day = String(todayDate.getDate()).padStart(2, '0');
   const today = `${year}-${month}-${day}`;
-  // --- END OF FIX ---
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -169,6 +166,21 @@ export const MessageBubble = ({ message, onFormSubmit }: MessageBubbleProps) => 
         isUser ? "justify-end" : "justify-start"
       )}
     >
+      {isUser && message.data.type === 'text' && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleCopy}
+            className="h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity mr-2 flex-shrink-0"
+          >
+            {copied ? (
+              <Check className="h-4 w-4 text-green-500" />
+            ) : (
+              <Copy className="h-4 w-4 text-muted-foreground" />
+            )}
+          </Button>
+      )}
+      
       <div
         className={cn(
           "relative max-w-[80%] rounded-lg px-4 pt-3 pb-2 break-words",
@@ -177,21 +189,6 @@ export const MessageBubble = ({ message, onFormSubmit }: MessageBubbleProps) => 
             : "bg-muted text-card-foreground"
         )}
       >
-        {!isUser && message.data.type === 'text' && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleCopy}
-            className="absolute top-1 right-1 h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
-          >
-            {copied ? (
-              <Check className="h-4 w-4 text-green-500" />
-            ) : (
-              <Copy className="h-4 w-4 text-muted-foreground" />
-            )}
-          </Button>
-        )}
-        
         {message.data.type === "leave_application_form" && (
           <LeaveApplicationForm onSubmit={onFormSubmit} />
         )}
@@ -219,6 +216,25 @@ export const MessageBubble = ({ message, onFormSubmit }: MessageBubbleProps) => 
           <p className="text-xs opacity-60">{message.timestamp}</p>
         </div>
       </div>
+
+      {/* --- 👇 THIS IS THE FIX --- */}
+      {/* We've moved the assistant's copy button outside the bubble */}
+      {/* to match the style of the user's copy button. */}
+      {!isUser && message.data.type === 'text' && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleCopy}
+            className="h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity ml-2 flex-shrink-0"
+          >
+            {copied ? (
+              <Check className="h-4 w-4 text-green-500" />
+            ) : (
+              <Copy className="h-4 w-4 text-muted-foreground" />
+            )}
+          </Button>
+      )}
+      {/* --- END OF FIX --- */}
     </motion.div>
   );
 };
