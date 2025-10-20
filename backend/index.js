@@ -11,20 +11,21 @@ app.use(express.json());
 
 const OLLAMA_API_URL = 'http://localhost:11434/api/chat';
 
-// --- This is our mock database for submitted leave requests ---
-let leaveApplications = [];
+// --- 👇 THIS IS THE UPGRADE (Part 1) ---
+// We define the path to our new JSON database file.
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const leaveDbPath = path.join(__dirname, 'tools', 'leave_applications.json');
+// --- END OF UPGRADE ---
 
-// --- 👇 STEP 1: DEFINE THE TOOLS ---
-// We create a list of "tools" the AI can use. For now, it's just one.
 const tools = [
     {
         name: 'show_leave_application_form',
         description: 'Use this tool when the user wants to apply for leave, request time off, or ask for a leave application form.',
-        parameters: {} // This tool needs no parameters to be called.
+        parameters: {}
     }
 ];
 
-// This function creates the instructions for the AI, telling it about its tools.
 const getToolsPrompt = () => {
     return `You are a helpful SAP Assistant. You have access to the following tools.
 
@@ -37,18 +38,16 @@ const getToolsPrompt = () => {
     2. To use a tool: { "type": "tool_call", "tool_name": "name_of_the_tool_to_use" }`;
 };
 
-// --- This is the main chat endpoint ---
 app.post('/api/chat', async (req, res) => {
     const { messageHistory } = req.body;
     const userQuery = messageHistory[messageHistory.length - 1].text;
 
     try {
-        // --- AI DECISION-MAKING STEP ---
         const decisionMakingPrompt = `User's request: "${userQuery}"\n\nBased on this request and the available tools, what is the correct JSON response?`;
 
         const decisionResponse = await axios.post(OLLAMA_API_URL, {
             model: 'llama3',
-            format: 'json', // We force the AI to respond in the JSON format we specified.
+            format: 'json',
             messages: [
                 { role: 'system', content: getToolsPrompt() },
                 { role: 'user', content: decisionMakingPrompt }
@@ -58,14 +57,11 @@ app.post('/api/chat', async (req, res) => {
 
         const decision = JSON.parse(decisionResponse.data.message.content);
 
-        // --- EXECUTE THE AI'S DECISION ---
         if (decision.type === 'tool_call' && decision.tool_name === 'show_leave_application_form') {
             console.log('AI decided to show the leave application form.');
-            // We send a special message type to the frontend.
             res.json({ type: 'leave_application_form' });
         } else {
             console.log('AI decided to have a normal conversation.');
-            // If it's not a tool call, just send the text content.
             res.json({ type: 'text', content: decision.content });
         }
 
@@ -75,23 +71,39 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
-// --- 👇 STEP 2: CREATE A NEW ENDPOINT FOR SUBMITTING THE FORM ---
-// This new endpoint will receive the data from the form when the user clicks "Submit".
+
+// --- 👇 THIS IS THE UPGRADE (Part 2) ---
+// This endpoint now reads from and writes to the JSON file.
 app.post('/api/submit-leave', (req, res) => {
-    const leaveData = req.body;
-    console.log('Received new leave application:', leaveData);
+    const newLeaveData = req.body;
+    console.log('Received new leave application:', newLeaveData);
 
-    // Save the application to our mock database
-    leaveApplications.push({ id: Date.now(), ...leaveData, status: 'Submitted' });
+    try {
+        // 1. Read the existing applications from the file.
+        const fileData = fs.readFileSync(leaveDbPath, 'utf-8');
+        const leaveApplications = JSON.parse(fileData);
 
-    console.log('Current leave applications:', leaveApplications);
+        // 2. Add the new application to the list.
+        leaveApplications.push({ id: Date.now(), ...newLeaveData, status: 'Submitted' });
 
-    // Send a success confirmation back to the frontend
-    res.json({
-        type: 'text',
-        content: 'Thanks! Your leave application has been submitted for approval.'
-    });
+        // 3. Write the entire updated list back to the file.
+        fs.writeFileSync(leaveDbPath, JSON.stringify(leaveApplications, null, 2));
+
+        console.log('Successfully saved to leave_applications.json');
+
+        // 4. Send a success confirmation back to the frontend.
+        res.json({
+            type: 'text',
+            content: 'Thanks! Your leave application has been successfully submitted and saved.'
+        });
+
+    } catch (error) {
+        console.error('Error saving leave application:', error);
+        res.status(500).json({ error: 'Failed to save the leave application.' });
+    }
 });
+// --- END OF UPGRADE ---
+
 
 const PORT = 3001;
 app.listen(PORT, () => {

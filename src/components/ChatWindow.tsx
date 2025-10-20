@@ -17,13 +17,14 @@ import {
 interface ChatWindowProps {
   messages: Message[]
   onPromptClick: (prompt: string) => void
+  onFormSubmit?: (formData: Record<string, any>) => void; // 👈 STEP 1: Accept the prop
   isConnected: boolean
   isBotTyping: boolean
   onToggleSidebar: () => void;
 }
 
 const TypingIndicator = () => (
-  <motion.div
+    <motion.div
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
     exit={{ opacity: 0, y: -10 }}
@@ -50,11 +51,10 @@ const TypingIndicator = () => (
   </motion.div>
 );
 
-export const ChatWindow = ({ messages, onPromptClick, isConnected, isBotTyping, onToggleSidebar }: ChatWindowProps) => {
+export const ChatWindow = ({ messages, onPromptClick, onFormSubmit, isConnected, isBotTyping, onToggleSidebar }: ChatWindowProps) => {
   const scrollViewportRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  // Auto-scroll logic
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isBotTyping]);
@@ -62,9 +62,7 @@ export const ChatWindow = ({ messages, onPromptClick, isConnected, isBotTyping, 
   const { theme, setTheme } = useTheme();
 
   return (
-    // --- THIS IS THE FIX ---
-    // The root container now correctly flexes and sets a zero minimum height,
-    // which is the key to making the inner scrollable area work correctly.
+    // This root div is now correctly structured for flexbox layout
     <div className="flex flex-col flex-1 min-h-0 bg-background">
       {/* Header (does not grow or shrink) */}
       <div className="flex-shrink-0 border-b border-border px-4 md:px-6 py-4 flex items-center justify-between">
@@ -146,22 +144,19 @@ export const ChatWindow = ({ messages, onPromptClick, isConnected, isBotTyping, 
         </div>
       </div>
       
-      {/* This div is now the main scrolling container.
-          - 'flex-1' makes it take all available vertical space.
-          - 'overflow-y-auto' makes it scroll when content is too tall.
-      */}
+      {/* This div is the main scrolling container */}
       <div ref={scrollViewportRef} className="flex-1 overflow-y-auto p-6">
         {messages.length === 0 && !isBotTyping ? (
           <WelcomeScreen onPromptClick={onPromptClick} />
         ) : (
+          // --- 👇 STEP 2: PASS THE PROP DOWN ---
           messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
+            <MessageBubble key={message.id} message={message} onFormSubmit={onFormSubmit} />
           ))
         )}
         <AnimatePresence>
           {isBotTyping && <TypingIndicator />}
         </AnimatePresence>
-        {/* This empty div is the anchor for our auto-scroll */}
         <div ref={messagesEndRef} />
       </div>
     </div>
