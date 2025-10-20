@@ -4,7 +4,6 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import Fuse from 'fuse.js';
 
 const app = express();
 app.use(cors());
@@ -12,86 +11,56 @@ app.use(express.json());
 
 const OLLAMA_API_URL = 'http://localhost:11434/api/chat';
 
-// --- Load the knowledge base ---
+// --- Load the entire knowledge base into a single string ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const knowledgeBasePath = path.join(__dirname, 'knowledge_base.json');
 const knowledgeBase = JSON.parse(fs.readFileSync(knowledgeBasePath, 'utf-8'));
 
-// --- Create the Fuzzy Search Index ---
-const fuseOptions = {
-  keys: ['term'],
-  includeScore: true,
-  threshold: 0.4, 
-};
-const fuse = new Fuse(knowledgeBase, fuseOptions);
-
-const stopWords = new Set(['what', 'is', 'a', 'the', 'of', 'in', 'can', 'you', 'tell', 'me', 'about', 'explain']);
-
-function searchKnowledgeBase(userQuery) {
-    console.log(`Original query: "${userQuery}"`);
-    const words = userQuery.toLowerCase().replace(/[?.,]/g, '').split(' ');
-    const keywords = words.filter(word => !stopWords.has(word));
-    const searchTerm = keywords.join(' ');
-    
-    console.log(`Performing fuzzy search for keywords: "${searchTerm}"...`);
-    const results = fuse.search(searchTerm);
-
-    console.log(`Found ${results.length} potential matches.`);
-    
-    if (results.length > 0 && results[0].score < 0.5) {
-        return [results[0].item];
-    }
-
-    return [];
-}
+// Convert the entire JSON knowledge base into a text format for the AI
+const knowledgeBaseAsText = knowledgeBase.map(item => `- ${item.term}: ${item.definition}`).join('\n');
+// ---
 
 app.post('/api/chat', async (req, res) => {
     const { messageHistory } = req.body;
     const userQuery = messageHistory[messageHistory.length - 1].text;
 
-    const searchResults = searchKnowledgeBase(userQuery);
-    
-    let contextForLLM = "No relevant information was found in my knowledge base.";
-    if (searchResults.length > 0) {
-        contextForLLM = "Relevant information from the knowledge base:\n" + 
-            searchResults.map(r => `- ${r.term}: ${r.definition}`).join("\n");
-    }
-
-    // --- 👇 THIS IS THE UPGRADE ---
-    const systemPrompt = {
-        role: 'system',
-        content: `You are SAP Assistant, a helpful and conversational AI expert. Your tone should be natural and direct, like a knowledgeable colleague.
-
-        - Your main goal is to answer the user's question accurately using the provided "Context from knowledge base" as your single source of truth.
-        - Formulate a natural, human-like response based on the information in the context. Explain it clearly in your own words.
-        - **CRITICAL RULE:** Do NOT mention your sources. Do NOT start your response with phrases like "According to the knowledge base..." or "Based on the information provided...". Just give the answer directly.
-        - **CRITICAL RULE:** Do NOT announce who you are. Do NOT start with "SAP Assistant's Response...".
-        - If the context says 'No relevant information was found', you must politely inform the user that you don't have information on that topic.
-        - Always use Markdown for formatting (e.g., '**' for bold, '- ' for lists).`
-    };
-    // --- END OF UPGRADE ---
-    
-    const fullPrompt = `Context:\n---\n${contextForLLM}\n---\n\nUser Question: ${userQuery}`;
-    
-    const ollamaMessages = [{ role: 'user', content: fullPrompt }];
-
     try {
-        const ollamaResponse = await axios.post(OLLAMA_API_URL, {
+        // --- NEW, SIMPLIFIED LOGIC ---
+
+        // --- STEP 1: CREATE THE SYSTEM PROMPT ---
+        // This prompt now instructs the AI to act as a search engine and synthesizer over its entire knowledge.
+        const systemPrompt = {
+            role: 'system',
+            content: `You are SAP Assistant, an expert AI with deep knowledge. Your entire knowledge base is provided below under "CONTEXT".
+            - Your goal is to synthesize information from your knowledge base to comprehensively answer the user's question.
+            - You must be able to connect different topics to answer complex questions about processes or relationships (e.g., explaining the steps of "procure-to-pay" by combining information about Purchase Orders, Goods Receipts, and Invoices).
+            - **CRITICAL RULE:** Do NOT mention your sources or "the knowledge base." Just answer the question directly and naturally, as if you know it from memory.
+            - If you truly cannot find any relevant information within the provided context to answer the question, politely state that you don't have specific details on that topic.
+            - **CRITICAL FORMATTING RULE:** You MUST use Markdown for all formatting. For lists, you MUST use a hyphen followed by a space (e.g., '- First item') for each bullet point.`
+        };
+        
+        // --- STEP 2: CREATE THE FULL PROMPT ---
+        // We combine the user's question with the entire knowledge base.
+        const fullPrompt = `CONTEXT:\n---\n${knowledgeBaseAsText}\n---\n\nUser Question: ${userQuery}`;
+        
+        // --- STEP 3: SEND TO THE AI ---
+        const finalResponse = await axios.post(OLLAMA_API_URL, {
             model: 'llama3',
-            messages: [systemPrompt, ...ollamaMessages],
+            // Note: We are not sending the whole chat history, just the current, self-contained question.
+            messages: [systemPrompt, { role: 'user', content: fullPrompt }],
             stream: false,
         });
 
-        res.json(ollamaResponse.data.message);
+        res.json(finalResponse.data.message);
 
     } catch (error) {
-        console.error("Error communicating with Ollama:", error.message);
+        console.error("Error in whole-context RAG process:", error.message);
         res.status(500).json({ error: 'Failed to get a response from the AI.' });
     }
 });
 
 const PORT = 3001;
 app.listen(PORT, () => {
-    console.log(`✅ Fuzzy Search RAG Backend is running on http://localhost:${PORT}`);
+    console.log(`✅ Whole-Context RAG Backend is running on http://localhost:${PORT}`);
 });

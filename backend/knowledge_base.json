@@ -1,7 +1,7 @@
 [
   {
     "term": "SAP S/4HANA",
-    "definition": "SAP S/4HANA is SAP’s next-generation ERP suite built on the SAP HANA in-memory database. It simplifies traditional ERP data models, uses the SAP Fiori user experience, and supports real-time transactions and analytics."
+    "definition": "SAP S/4HANA represents the most significant architectural shift in the company's history, moving from a traditional disk-based ERP to a modern digital core built entirely on the in-memory SAP HANA database. This transformation is not merely a technical upgrade but a fundamental re-architecture of business processes, data models, and user experience, designed for the demands of a digital economy."
   },
   {
     "term": "SAP Fiori",
@@ -9,7 +9,7 @@
   },
   {
     "term": "ABAP",
-    "definition": "ABAP (Advanced Business Application Programming) is SAP’s proprietary programming language for developing and customizing SAP applications on the NetWeaver and S/4HANA platforms."
+    "definition": "ABAP (Advanced Business Application Programming) is a high-level, 4th-generation programming language created by SAP. It is the primary language used to develop the vast majority of SAP's applications and provides the framework for customers to create their own custom reports, interfaces, conversions, enhancements, forms, and workflows (RICEFW)."
   },
   {
     "term": "SAP NetWeaver",
@@ -25,295 +25,746 @@
   },
   {
     "term": "Financial Accounting (FI)",
-    "definition": "SAP FI (Financial Accounting) is the module that records all financial transactions. It handles general ledger accounting, accounts payable, accounts receivable, asset accounting, and financial reporting, providing a comprehensive view of a company’s financial status."
+    "definition": "Oriented towards external reporting requirements, providing the data necessary for statutory and legal reporting, such as balance sheets and profit and loss statements. Its key components include the General Ledger (G/L), Accounts Payable (AP), Accounts Receivable (AR), and Asset Accounting (AA)."
   },
   {
     "term": "Controlling (CO)",
-    "definition": "SAP CO (Controlling) is the internal management accounting module. It focuses on planning, reporting, and monitoring costs (and revenues) of business operations. Key functions include cost center accounting, profit center accounting, internal orders, and profitability analysis."
+    "definition": "Focused on internal management reporting and decision-making. Its purpose is to provide management with the information needed to plan, monitor, and optimize business processes. Key components include Cost Center Accounting (CCA) and Profit Center Accounting (PCA)."
   },
   {
     "term": "Materials Management (MM)",
-    "definition": "SAP MM (Materials Management) manages procurement and inventory processes. It covers purchasing, goods receipt and issue, inventory valuation, and invoice verification, integrating closely with Finance, Sales, and Production modules to manage the supply chain of materials."
+    "definition": "The Materials Management (MM) module governs the entire procurement and inventory management lifecycle, often referred to as the 'Procure-to-Pay' process. It is the foundational component for all supply chain activities."
   },
   {
     "term": "Sales and Distribution (SD)",
-    "definition": "SAP SD (Sales and Distribution) manages order-to-cash business processes. It handles sales order processing, pricing (with the condition technique), delivery scheduling, shipping, billing, and credit management. It integrates with Finance and MM to enable complete sales transactions."
+    "definition": "The Sales and Distribution (SD) module manages all processes within the 'Order-to-Cash' cycle. It is the primary interface with the customer, handling everything from initial inquiries and sales orders to the shipment of goods and final invoicing."
   },
   {
     "term": "Production Planning (PP)",
-    "definition": "SAP PP (Production Planning) is used for manufacturing resource planning and control. It includes material requirements planning (MRP), production orders, capacity planning, bill of materials (BOM) management, and shop floor control, ensuring materials and resources align with demand forecasts."
+    "definition": "SAP PP (Production Planning) is used for manufacturing resource planning and control. It includes material requirements planning (MRP), production orders, capacity planning, bill of materials (BOM) management, and shop floor control."
   },
   {
     "term": "Quality Management (QM)",
-    "definition": "SAP QM (Quality Management) handles quality inspection and assurance in procurement and production. It supports quality planning, inspection execution (incoming, in-process, final), quality certificates, and integration with other modules to enforce quality standards."
+    "definition": "SAP QM (Quality Management) handles quality inspection and assurance in procurement and production. It supports quality planning, inspection execution, quality certificates, and integration with other modules."
   },
   {
     "term": "Plant Maintenance (PM)",
-    "definition": "SAP PM (Plant Maintenance) covers maintenance planning and execution for equipment and facilities. It manages preventive and corrective maintenance, maintenance orders, work scheduling, and integration with inventory and purchasing for spare parts."
+    "definition": "SAP PM (Plant Maintenance) covers maintenance planning and execution for equipment and facilities. It manages preventive and corrective maintenance, maintenance orders, work scheduling, and integration with inventory."
   },
   {
     "term": "Project System (PS)",
-    "definition": "SAP PS (Project System) is used for project planning and control. It manages complex projects by defining project structures (WBS elements, networks), scheduling tasks, tracking costs and budgets, and integrating with Finance (for budgeting) and Controlling (for cost tracking)."
+    "definition": "SAP PS (Project System) is used for project planning and control. It manages complex projects by defining project structures (WBS elements, networks), scheduling tasks, and tracking costs and budgets."
   },
   {
     "term": "Product Lifecycle Management (PLM)",
-    "definition": "SAP PLM (Product Lifecycle Management) supports the management of product data and processes throughout the product’s lifecycle. It includes capabilities for engineering change management, document management, compliance tracking, and collaboration between engineering and production."
+    "definition": "SAP PLM (Product Lifecycle Management) supports the management of product data and processes throughout the product’s lifecycle, including engineering change management, document management, and compliance tracking."
   },
   {
     "term": "Plant",
-    "definition": "In SAP logistics, a Plant is an organizational unit representing a location for production, inventory storage, or distribution. A plant is assigned to a company code and is the basis for manufacturing operations, procurement, and material movements."
+    "definition": "In SAP logistics, a Plant is an organizational unit representing a location for production, inventory storage, or distribution. It is assigned to a company code and is the basis for manufacturing and material movements."
   },
   {
     "term": "Storage Location",
-    "definition": "A Storage Location is a subdivision of a Plant where inventory is physically stored. It can represent a specific bin, warehouse area, or material type. Inventory levels and movements are managed at the storage location level."
+    "definition": "A Storage Location is a subdivision of a Plant where inventory is physically stored. Inventory levels and movements are managed at the storage location level."
   },
   {
     "term": "Company Code",
-    "definition": "A Company Code is the smallest organizational unit for which a complete set of financial accounts can be maintained. It represents a legal entity in SAP, defining the level at which financial statements (balance sheet and profit and loss) are prepared."
+    "definition": "A Company Code is the smallest organizational unit for which a complete set of financial accounts can be maintained. It represents a legal entity in SAP for financial statements."
   },
   {
     "term": "Controlling Area",
-    "definition": "A Controlling Area in SAP CO is an organizational unit that encompasses one or more company codes for cost accounting purposes. It allows for cross-company cost tracking and controlling if multiple legal entities share cost centers under one controlling area."
+    "definition": "A Controlling Area in SAP CO is an organizational unit that encompasses one or more company codes for cost accounting purposes, allowing for cross-company cost tracking."
   },
   {
     "term": "Business Partner",
-    "definition": "In SAP S/4HANA, a Business Partner is the master data record for parties the company does business with (customers, vendors, employees). It centralizes business partner data (address, banking, contacts) and replaces separate customer/vendor masters for consistency."
+    "definition": "In SAP S/4HANA, a Business Partner is the master data record for parties the company does business with (customers, vendors, employees). It centralizes business partner data for consistency."
   },
   {
     "term": "Chart of Accounts",
-    "definition": "The Chart of Accounts is a structured list of all general ledger accounts used by one or more company codes. It defines the account numbers and categories (assets, liabilities, expenses, etc.) for financial reporting and bookkeeping."
+    "definition": "The Chart of Accounts is a structured list of all general ledger accounts used by one or more company codes, defining the account numbers and categories for financial reporting."
   },
   {
     "term": "SAP HANA",
-    "definition": "SAP HANA is SAP’s in-memory, column-oriented relational database and platform for high-performance analytics and transaction processing. By storing data in RAM, HANA enables real-time reporting and simplifies data models for faster decision-making."
+    "definition": "SAP HANA is SAP’s in-memory, column-oriented relational database and platform for high-performance analytics and transaction processing, enabling real-time reporting."
   },
   {
     "term": "SAP ECC",
-    "definition": "SAP ECC (ERP Central Component) is SAP’s on-premises ERP suite (the predecessor to S/4HANA). It includes the core SAP Business Suite modules (FI, CO, MM, SD, etc.) integrated for financials, logistics, and other enterprise processes. ECC runs on traditional databases or HANA (as 'Suite on HANA')."
+    "definition": "SAP ECC (ERP Central Component) is SAP’s on-premises ERP suite (the predecessor to S/4HANA). It includes the core SAP Business Suite modules (FI, CO, MM, SD, etc.) and runs on traditional databases or HANA."
   },
   {
     "term": "SAP ERP",
-    "definition": "SAP ERP is SAP’s flagship enterprise resource planning software. It refers to both SAP ECC and S/4HANA products. SAP ERP integrates key business functions (finance, HR, manufacturing, supply chain, etc.) into a unified system for enterprise-wide planning and execution."
+    "definition": "SAP ERP is SAP’s flagship enterprise resource planning software, referring to both SAP ECC and S/4HANA products. It integrates key business functions into a unified system."
   },
   {
     "term": "SAP BW (Business Warehouse)",
-    "definition": "SAP BW is a data warehousing solution on SAP NetWeaver. It consolidates, transforms, and stores data from SAP and external sources to provide reporting, analytics, and planning. BW provides a centralized repository and tools for building enterprise data warehouses."
+    "definition": "SAP BW is a data warehousing solution on SAP NetWeaver that consolidates, transforms, and stores data from SAP and external sources to provide reporting, analytics, and planning."
   },
   {
     "term": "SAP BW/4HANA",
-    "definition": "SAP BW/4HANA is the next-generation data warehousing solution optimized for SAP HANA. It simplifies and accelerates data modeling, transformation, and reporting by fully leveraging the in-memory HANA database for high performance analytics."
+    "definition": "SAP BW/4HANA is the next-generation data warehousing solution optimized for SAP HANA, simplifying and accelerating data modeling, transformation, and reporting."
   },
   {
     "term": "SAP BusinessObjects (BI)",
-    "definition": "SAP BusinessObjects is a suite of business intelligence tools for reporting, analysis, and data visualization. It includes components like Web Intelligence, Crystal Reports, and Dashboard Designer, allowing users to create ad hoc reports, dashboards, and queries on SAP or other data."
+    "definition": "SAP BusinessObjects is a suite of business intelligence tools for reporting, analysis, and data visualization, including components like Web Intelligence, Crystal Reports, and Dashboard Designer."
   },
   {
     "term": "SAP Analytics Cloud (SAC)",
-    "definition": "SAP Analytics Cloud (SAC) is a cloud-based analytics platform combining business intelligence, planning, and predictive analytics. It provides interactive dashboards, data exploration, and planning features, with integration to SAP data sources (S/4HANA, BW, etc.) and third-party data."
+    "definition": "SAP Analytics Cloud (SAC) is a cloud-based analytics platform combining business intelligence, planning, and predictive analytics with interactive dashboards and data exploration features."
   },
   {
     "term": "SAP Integrated Business Planning (IBP)",
-    "definition": "SAP IBP is a cloud-based supply chain planning suite. It offers functionalities for demand planning, inventory optimization, supply planning, and sales & operations planning (S&OP), leveraging real-time data and predictive analytics to align supply chain plans with business goals."
+    "definition": "SAP IBP is a cloud-based supply chain planning suite for demand planning, inventory optimization, supply planning, and sales & operations planning (S&OP)."
   },
   {
     "term": "SAP Extended Warehouse Management (EWM)",
-    "definition": "SAP EWM is an advanced warehouse management module. It provides detailed management of warehouse operations, including goods receipt, goods issue, putaway, picking, and inventory control, with features like task management and resource management for complex warehouse processes."
+    "definition": "SAP EWM is an advanced warehouse management system for managing complex, high-volume distribution centers. It can be deployed decentralized or embedded in S/4HANA and offers advanced features like Slotting, Labor Management, and Task Interleaving."
   },
   {
     "term": "SAP Transportation Management (TM)",
-    "definition": "SAP TM (Transportation Management) is a logistics solution for planning, execution, and monitoring of transportation. It handles transportation planning, carrier selection, freight costing, shipment execution, and freight settlement to optimize shipping processes."
+    "definition": "SAP Transportation Management (SAP TM) is the strategic logistics application designed to manage the entire transportation lifecycle, including freight order management, planning, and settlement."
   },
   {
     "term": "SAP Ariba",
-    "definition": "SAP Ariba is a cloud-based procurement and supply chain platform. It connects buyers and suppliers globally to automate sourcing, procurement, invoicing, and supply chain collaboration, enabling a unified procure-to-pay process on a single network."
+    "definition": "SAP Ariba is a cloud-based procurement and supply chain platform connecting buyers and suppliers globally to automate sourcing, procurement, invoicing, and supply chain collaboration."
   },
   {
     "term": "SAP SuccessFactors",
-    "definition": "SAP SuccessFactors is a cloud-based Human Capital Management (HCM) suite. It covers talent management (recruiting, performance, learning), core HR (employee central), payroll, workforce analytics, and succession planning to help organizations manage their workforce lifecycle."
+    "definition": "SAP SuccessFactors is a cloud-based Human Capital Management (HCM) suite covering talent management, core HR, payroll, and workforce analytics."
   },
   {
     "term": "SAP Fieldglass",
-    "definition": "SAP Fieldglass is a cloud-based Vendor Management System (VMS) for managing external workforce and service procurement. It handles processes for contingent labor (contractors, freelancers) and services, including sourcing, engagement, time tracking, and invoicing, with compliance and analytics."
+    "definition": "SAP Fieldglass is a cloud-based Vendor Management System (VMS) for managing external workforce and service procurement, including contingent labor and services."
   },
   {
     "term": "SAP Concur",
-    "definition": "SAP Concur is a cloud-based travel, expense, and invoice management solution. It automates travel booking, expense reporting, and invoice processing, providing organizations with visibility and control over travel and business spending."
+    "definition": "SAP Concur is a cloud-based travel, expense, and invoice management solution that automates travel booking, expense reporting, and invoice processing."
   },
   {
     "term": "SAP GRC",
-    "definition": "SAP GRC (Governance, Risk, and Compliance) is a suite of solutions for managing enterprise risk and regulatory compliance. It includes access control (role management), process control (policy and control management), and risk management to ensure security and compliance across SAP systems."
+    "definition": "SAP GRC (Governance, Risk, and Compliance) is a suite of solutions for managing enterprise risk and regulatory compliance, including access control and process control."
   },
   {
     "term": "SAP Business Technology Platform (BTP)",
-    "definition": "SAP BTP (Business Technology Platform) is SAP’s integrated platform-as-a-service. It combines database and data management, analytics, application development, integration, and intelligent technologies on one unified cloud platform, enabling organizations to develop, integrate, and extend applications."
+    "definition": "SAP BTP (Business Technology Platform) is SAP’s integrated platform-as-a-service, combining database, analytics, application development, and integration on one unified cloud platform."
   },
   {
     "term": "SAP Cloud Platform Integration (CPI)",
-    "definition": "SAP CPI (Cloud Platform Integration) is an integration Platform-as-a-Service. It provides tools and connectors to integrate SAP and third-party applications across cloud and on-premises, enabling seamless data and process connectivity in a hybrid landscape."
+    "definition": "SAP CPI (Cloud Platform Integration) is an integration Platform-as-a-Service that provides tools to integrate SAP and third-party applications across cloud and on-premises."
   },
   {
     "term": "SAP IDoc",
-    "definition": "An IDoc (Intermediate Document) is a standardized SAP data structure for exchanging information between SAP systems or between SAP and non-SAP systems. IDocs are used for asynchronous electronic data interchange (EDI) and application link enabling (ALE)."
+    "definition": "An IDoc (Intermediate Document) is a standardized SAP data structure for exchanging information between SAP systems or between SAP and non-SAP systems for EDI and ALE."
   },
   {
     "term": "SAP ALE",
-    "definition": "SAP ALE (Application Link Enabling) is the SAP technology for distributing data (via IDocs) between SAP systems. ALE enables asynchronous, automated data exchange across clients or systems without modifying the original data format."
+    "definition": "SAP ALE (Application Link Enabling) is the SAP technology for distributing data (via IDocs) between SAP systems, enabling asynchronous, automated data exchange."
   },
   {
     "term": "SAP RFC",
-    "definition": "SAP RFC (Remote Function Call) is a protocol and API for calling functions in remote SAP or external systems. It enables synchronous communication and integration by allowing ABAP function modules to be invoked across systems."
+    "definition": "SAP RFC (Remote Function Call) is a protocol and API for calling functions in remote SAP or external systems, enabling synchronous communication."
   },
   {
     "term": "BAPI",
-    "definition": "A BAPI (Business Application Programming Interface) is an SAP-defined, remote-enabled function module. BAPIs provide standard programming interfaces to SAP business objects (like SalesOrder or Customer) for external applications or custom code to perform transactions."
+    "definition": "A BAPI (Business Application Programming Interface) is an SAP-defined, remote-enabled function module that provides standard programming interfaces to SAP business objects."
   },
   {
     "term": "SAP Gateway",
-    "definition": "SAP Gateway is a technology that enables the exposure of SAP business data and processes as OData services. It allows SAP systems to communicate with external web and mobile applications by providing a way to query and update SAP data over HTTP."
+    "definition": "SAP Gateway is a technology that enables the exposure of SAP business data and processes as OData services, allowing communication with external web and mobile applications."
   },
   {
     "term": "SAP CDS",
-    "definition": "SAP CDS (Core Data Services) is a data modeling infrastructure within ABAP. CDS allows developers to define semantic data models (views and entities) directly on the SAP HANA database, which can be used for advanced reporting and for powering SAP Fiori apps."
+    "definition": "SAP CDS (Core Data Services) is a data modeling infrastructure within ABAP that allows developers to define semantic data models directly on the SAP HANA database."
   },
   {
     "term": "SAP UI5",
-    "definition": "SAPUI5 is SAP’s HTML5/Javascript UI framework for building responsive web applications. It provides a set of UI controls and an MVC architecture. SAPUI5 is the underlying technology for SAP Fiori apps, enabling rich, cross-platform interfaces."
+    "definition": "SAPUI5 is SAP’s HTML5/Javascript UI framework for building responsive web applications and is the underlying technology for SAP Fiori apps."
   },
   {
     "term": "SAP Enterprise Portal",
-    "definition": "SAP Enterprise Portal is a web-based portal that provides a single access point to SAP and non-SAP applications, reports, and collaboration tools. It aggregates information from various sources into a unified, role-based web interface."
+    "definition": "SAP Enterprise Portal is a web-based portal that provides a single access point to SAP and non-SAP applications, reports, and collaboration tools."
   },
   {
     "term": "SAP Solution Manager",
-    "definition": "SAP Solution Manager (SolMan) is an application lifecycle management tool. It supports SAP implementations and operations by providing tools for project management, system monitoring, change control, testing, and support of SAP environments."
+    "definition": "SAP Solution Manager (SolMan) is an application lifecycle management tool that supports SAP implementations and operations with project management and system monitoring tools."
   },
   {
     "term": "SAP LSMW",
-    "definition": "SAP LSMW (Legacy System Migration Workbench) is a tool for data migration and conversion. It enables loading of data from legacy systems into SAP by mapping and transforming data, useful for initial master data setup or periodic batch loads."
+    "definition": "SAP LSMW (Legacy System Migration Workbench) is a tool for data migration and conversion, enabling the loading of data from legacy systems into SAP."
   },
   {
     "term": "SAP BAdI",
-    "definition": "SAP BAdI (Business Add-In) is an enhancement technique. It allows developers to add custom ABAP code to standard SAP programs without modifying them, by implementing predefined enhancement spots (hooks) in the application."
+    "definition": "SAP BAdI (Business Add-In) is an enhancement technique that allows developers to add custom ABAP code to standard SAP programs without modification by implementing predefined hooks."
   },
   {
     "term": "Chart of Depreciation",
-    "definition": "A Chart of Depreciation in SAP defines the rules and parameters for fixed asset depreciation (for example, periods, accounting principles, and depreciation methods). It is assigned to company codes to manage how assets are depreciated."
+    "definition": "A Chart of Depreciation in SAP defines the rules and parameters for fixed asset depreciation, such as periods, accounting principles, and depreciation methods."
   },
   {
     "term": "Asset Accounting (AA)",
-    "definition": "SAP AA (Asset Accounting) is a sub-module of FI that manages fixed assets. It handles asset acquisitions, capitalization, depreciation, and retirement, and integrates with general ledger to track asset-related financial transactions."
+    "definition": "SAP AA (Asset Accounting) is a sub-module of FI that manages fixed assets, handling acquisitions, capitalization, depreciation, and retirement."
   },
   {
     "term": "Profit Center Accounting (PCA)",
-    "definition": "Profit Center Accounting is a sub-component of CO that analyzes financial performance by profit centers. Profit centers represent units (like divisions or locations) for internal reporting, allowing profitability analysis independent of legal entities."
+    "definition": "Profit Center Accounting is a sub-component of CO that analyzes financial performance by profit centers, which represent units for internal reporting and profitability analysis."
   },
   {
     "term": "Treasury and Risk Management (TR)",
-    "definition": "SAP TR (Treasury) is a financial module that supports cash and liquidity management, treasury accounting, and risk management. It includes sub-components for market risk (trading) and credit risk management to help organizations manage financial assets and liabilities."
+    "definition": "SAP TR (Treasury) is a financial module that supports cash and liquidity management, treasury accounting, and risk management to help organizations manage financial assets and liabilities."
   },
   {
     "term": "Funds Management (FM)",
-    "definition": "SAP FM (Funds Management) is used primarily in public sector and nonprofits to manage budgets and appropriations. It controls funds, commitments, expenditures, and available budgets to ensure that spending does not exceed allocated resources."
+    "definition": "SAP FM (Funds Management) is used primarily in public sector and nonprofits to manage budgets and appropriations, ensuring spending does not exceed allocated resources."
   },
   {
     "term": "Customer Service (CS)",
-    "definition": "SAP CS (Customer Service) is part of SAP’s Service Management. It handles after-sales service processes including service orders, service contracts, warranties, repair and return processes, and integration with spare parts inventory."
+    "definition": "SAP CS (Customer Service) is part of SAP’s Service Management, handling after-sales service processes including service orders, contracts, warranties, and repairs."
   },
   {
     "term": "Environment, Health and Safety (EHS)",
-    "definition": "SAP EHS (Environment, Health & Safety) is a solution suite for managing product safety, regulatory compliance, and occupational health. It includes tools for handling hazardous substances, safety data sheets, incident management, and legal compliance reporting."
+    "definition": "SAP EHS (Environment, Health & Safety) is a solution suite for managing product safety, regulatory compliance, and occupational health, including tools for handling hazardous substances and incident management."
   },
   {
     "term": "Central Finance (CFIN)",
-    "definition": "SAP Central Finance is a deployment approach in S/4HANA that creates a centralized finance instance. It replicates financial postings from multiple SAP (and non-SAP) systems into a central S/4HANA system, providing a unified financial reporting view without a full migration."
+    "definition": "SAP Central Finance is a deployment approach in S/4HANA that creates a centralized finance instance by replicating financial postings from multiple SAP and non-SAP systems into a central S/4HANA system."
   },
   {
     "term": "SAP C/4HANA",
-    "definition": "SAP C/4HANA (now SAP Customer Experience) is SAP’s suite of customer relationship management and commerce solutions. It includes SAP Commerce Cloud, Marketing Cloud, Sales Cloud, Service Cloud, and Customer Data Cloud for end-to-end customer engagement."
+    "definition": "SAP C/4HANA (now SAP Customer Experience) is SAP’s suite of customer relationship management and commerce solutions, including Commerce Cloud, Marketing Cloud, Sales Cloud, and Service Cloud."
   },
   {
     "term": "Real Estate Management (RE)",
-    "definition": "SAP RE (Real Estate Management) manages a company’s real estate portfolio. It handles leasing, rental contracts, space management, and real estate accounting, integrating with Financial Accounting for property-related transactions."
+    "definition": "SAP RE (Real Estate Management) manages a company’s real estate portfolio, handling leasing, rental contracts, space management, and real estate accounting."
   },
   {
     "term": "SAP FICO",
-    "definition": "SAP FICO (Financial Accounting and Controlling) refers to the integrated modules for managing financial accounting and managerial accounting processes. It covers functions like general ledger, accounts payable/receivable, cost tracking, and profitability analysis, providing a unified view of financial performance."
+    "definition": "SAP FICO (Financial Accounting and Controlling) refers to the integrated modules for managing financial accounting and managerial accounting processes, providing a unified view of financial performance."
   },
   {
     "term": "SAP HCM (Human Capital Management)",
-    "definition": "SAP HCM (Human Capital Management) is a suite of modules for human resources management. It covers organizational management, personnel administration, recruitment, payroll, time management, and performance management, centralizing employee data and HR processes."
+    "definition": "SAP HCM (Human Capital Management) is a suite of modules for human resources management, covering organizational management, personnel administration, recruitment, payroll, and performance management."
   },
   {
     "term": "SAP Payroll",
-    "definition": "SAP Payroll (PY) is a component of SAP HCM that processes employee salaries. It calculates wages, taxes, and deductions according to local regulations, and integrates payroll results with financial accounting."
+    "definition": "SAP Payroll (PY) is a component of SAP HCM that processes employee salaries, calculates wages, taxes, and deductions, and integrates payroll results with financial accounting."
   },
   {
     "term": "SAP CATS (Cross-Application Time Sheet)",
-    "definition": "SAP CATS (Cross-Application Time Sheet) is an SAP tool that records employee working times and integrates them into various SAP modules. It enables time entry for activities like project time tracking, maintenance orders, or HR time evaluation, ensuring consistent time management across systems."
+    "definition": "SAP CATS (Cross-Application Time Sheet) is an SAP tool that records employee working times and integrates them into various SAP modules for project tracking, maintenance orders, or HR time evaluation."
   },
   {
     "term": "SAP CRM (Customer Relationship Management)",
-    "definition": "SAP CRM (Customer Relationship Management) was an SAP solution for managing customer relationships across sales, marketing, and service. It enabled tracking of leads, opportunities, service requests, and customer communications. (Many CRM capabilities are now delivered through SAP C/4HANA cloud solutions.)"
+    "definition": "SAP CRM was an SAP solution for managing customer relationships. Many of its capabilities are now delivered through SAP C/4HANA cloud solutions."
   },
   {
     "term": "SAP SRM (Supplier Relationship Management)",
-    "definition": "SAP SRM (Supplier Relationship Management) is a procurement solution for managing buying processes and supplier collaboration. It includes supplier evaluation, sourcing, contract management, and purchase order execution. (Much of SRM functionality is now available through SAP Ariba.)"
+    "definition": "SAP SRM is a procurement solution for managing buying processes and supplier collaboration. Much of its functionality is now available through SAP Ariba."
   },
   {
     "term": "SAP GTS (Global Trade Services)",
-    "definition": "SAP GTS (Global Trade Services) manages international trade processes, including customs, compliance, and trade documentation. It automates export/import controls, trade compliance checks, and customs filings to streamline global supply chain operations."
+    "definition": "SAP GTS manages international trade processes, including customs, compliance, and trade documentation, to streamline global supply chain operations."
   },
   {
     "term": "SAP APO (Advanced Planning and Optimization)",
-    "definition": "SAP APO is a suite of supply chain planning tools (part of SAP SCM) that includes modules like Demand Planning (DP), Supply Network Planning (SNP), Production Planning/Detailed Scheduling (PP/DS), and Global ATP. It provides advanced forecasting and planning capabilities for complex supply networks."
+    "definition": "SAP APO is a suite of supply chain planning tools (part of SAP SCM) that includes modules like Demand Planning (DP), Supply Network Planning (SNP), and Production Planning/Detailed Scheduling (PP/DS)."
   },
   {
     "term": "SAP PI (Process Integration)",
-    "definition": "SAP PI (Process Integration) is a middleware component (part of SAP NetWeaver) that enables integration of SAP and external systems. It uses adapters and mappings to route and transform messages (such as IDocs or XML) between heterogeneous systems, supporting asynchronous communications."
+    "definition": "SAP PI is a middleware component that enables integration of SAP and external systems, using adapters and mappings to route and transform messages between heterogeneous systems."
   },
   {
     "term": "SAP PO (Process Orchestration)",
-    "definition": "SAP PO (Process Orchestration) is an integrated platform combining SAP Process Integration (PI), Business Process Management (BPM), and Business Rules Management (BRM). It allows design, execution, and monitoring of complex business processes and integrations within SAP landscapes."
+    "definition": "SAP PO is an integrated platform combining SAP Process Integration (PI), Business Process Management (BPM), and Business Rules Management (BRM) to orchestrate complex business processes."
   },
   {
     "term": "SAP MDG (Master Data Governance)",
-    "definition": "SAP MDG (Master Data Governance) is an application for centrally managing and governing master data (such as materials, customers, suppliers, and finance data). It provides workflows, validations, and replication to ensure data consistency and quality across the enterprise."
+    "definition": "SAP MDG is an application for centrally managing and governing master data (such as materials, customers, suppliers) with workflows and validations to ensure data consistency."
   },
   {
     "term": "SAP MDM (Master Data Management)",
-    "definition": "SAP MDM (Master Data Management) is an older SAP solution (pre-dating MDG) for consolidating and distributing master data across multiple systems. It provides capabilities for data modeling, consolidation, and distribution of master data."
+    "definition": "SAP MDM is an older SAP solution (pre-dating MDG) for consolidating and distributing master data across multiple systems."
   },
   {
     "term": "SAP FSCM (Financial Supply Chain Management)",
-    "definition": "SAP FSCM (Financial Supply Chain Management) is a suite of components for optimizing accounts receivable and credit management. It includes Credit Management (customer credit assessment), Collections Management (handling overdue receivables), and Dispute Management, helping companies improve cash flow and manage credit risk."
+    "definition": "SAP FSCM is a suite for optimizing accounts receivable and credit management, including Credit Management, Collections Management, and Dispute Management."
   },
   {
     "term": "SAP ILM (Information Lifecycle Management)",
-    "definition": "SAP ILM (Information Lifecycle Management) is used for data retention, archiving, and compliance management. It allows organizations to define retention rules for business data and ensure that data is stored or securely deleted according to legal and policy requirements."
+    "definition": "SAP ILM is used for data retention, archiving, and compliance management, allowing organizations to define retention rules for business data according to legal requirements."
   },
   {
     "term": "SAP Fiori Launchpad",
-    "definition": "SAP Fiori Launchpad is the web-based entry point for SAP Fiori apps and transactions. It provides a tile-based homepage where users can launch applications, view KPIs, and receive notifications, offering a personalized and role-based access to SAP functionalities."
+    "definition": "SAP Fiori Launchpad is the web-based, tile-based entry point for SAP Fiori apps and transactions, offering a personalized and role-based access to SAP functionalities."
   },
   {
     "term": "SAP UI Theme Designer",
-    "definition": "SAP UI Theme Designer is a web application for customizing the visual theme of SAP Fiori and SAP GUI screens. It allows changing colors, fonts, and branding elements (such as logos) to create consistent, corporate-styled interfaces without coding."
+    "definition": "SAP UI Theme Designer is a web application for customizing the visual theme of SAP Fiori and SAP GUI screens, allowing changes to colors, fonts, and branding."
   },
   {
     "term": "SAP Data Services (BODS)",
-    "definition": "SAP Data Services (often called BODS for BusinessObjects Data Services) is an ETL (extract, transform, load) tool for data integration. It enables extracting data from SAP and non-SAP sources, transforming/cleansing it, and loading it into target systems like data warehouses or SAP HANA."
+    "definition": "SAP Data Services (BODS) is an ETL (extract, transform, load) tool for data integration, enabling data extraction, transformation, and loading between SAP and non-SAP sources."
   },
   {
     "term": "SAP Data Intelligence",
-    "definition": "SAP Data Intelligence is a cloud-based solution for data orchestration and management. It connects to multiple data sources (databases, cloud, streaming, etc.), catalogs and pipelines data, and provides tools for data preparation and machine learning integration."
+    "definition": "SAP Data Intelligence is a cloud-based solution for data orchestration and management, connecting to multiple data sources and providing tools for data preparation and machine learning."
   },
   {
     "term": "SAP ABAP Workbench",
-    "definition": "SAP ABAP Workbench is the integrated development environment (IDE) for ABAP. It includes tools such as the ABAP Editor, Dictionary, Function Builder, and Debugger. Developers use it to create programs, data definitions, and other customizations in SAP systems."
+    "definition": "SAP ABAP Workbench is the integrated development environment (IDE) for ABAP, including tools such as the ABAP Editor, Dictionary, Function Builder, and Debugger."
   },
   {
     "term": "SAP ArchiveLink",
-    "definition": "SAP ArchiveLink is an interface framework for linking documents (such as scanned invoices or contracts) to SAP business objects. It enables storing documents in an external archive while attaching them to transactions or master data in SAP for easy retrieval."
+    "definition": "SAP ArchiveLink is an interface framework for linking documents (such as scanned invoices) to SAP business objects, enabling storage in an external archive while attached to transactions in SAP."
+  },
+  {
+    "term": "Financials and Controlling (FICO)",
+    "definition": "FICO represents the central nervous system of the SAP ERP system. It is the definitive system of record for all financial transactions and is responsible for both external and internal financial reporting."
+  },
+  {
+    "term": "General Ledger (G/L)",
+    "definition": "The General Ledger serves as the complete, centralized record of all financial transactions within the FI module."
+  },
+  {
+    "term": "Accounts Payable (AP)",
+    "definition": "Accounts Payable manages all processes related to vendors, from invoice posting to payments within the FI module."
+  },
+  {
+    "term": "Accounts Receivable (AR)",
+    "definition": "Accounts Receivable handles all customer-related accounting, including invoicing and collections within the FI module."
+  },
+  {
+    "term": "Cost Center Accounting (CCA)",
+    "definition": "Cost Center Accounting is used to track costs associated with specific functional areas or departments like HR or IT within the CO module."
+  },
+  {
+    "term": "Profit Center Accounting (PCA)",
+    "definition": "Profit Center Accounting evaluates the profitability of independent areas within an enterprise, such as a product line or business unit, within the CO module."
+  },
+  {
+    "term": "Product Cost Controlling (CO-PC)",
+    "definition": "Product Cost Controlling is dedicated to determining the costs associated with manufacturing a product or providing a service within the CO module."
+  },
+  {
+    "term": "Material Master",
+    "definition": "A comprehensive record (T-Code MM01) containing all information about a specific product or service, including purchasing, storage, accounting, and sales data."
+  },
+  {
+    "term": "Vendor Master",
+    "definition": "Centralizes all relevant information about a supplier (T-Code XK01), including address, payment terms, and accounting details."
+  },
+  {
+    "term": "Purchasing Info Record",
+    "definition": "Stores specific conditions for purchasing a particular material from a specific vendor (T-Code ME11), such as price, delivery time, and quantity tolerances."
+  },
+  {
+    "term": "Purchase Requisition",
+    "definition": "An internal document (T-Code ME51N) that signals a need for a material or service."
+  },
+  {
+    "term": "Purchase Order",
+    "definition": "A formal, legally binding document (T-Code ME21N) sent to a vendor to procure specified goods or services under agreed-upon terms."
+  },
+  {
+    "term": "Goods Movement",
+    "definition": "A transaction (T-Code MIGO) that records the physical receipt or issue of goods, which updates inventory levels and can trigger financial postings."
+  },
+  {
+    "term": "Invoice Verification",
+    "definition": "The process (T-Code MIRO) where a vendor's invoice is checked against the purchase order and goods receipt to ensure accuracy before payment is processed."
+  },
+  {
+    "term": "Customer Master",
+    "definition": "The central repository (T-Code XD01) for all data related to a customer, including general, company code, and sales area data."
+  },
+  {
+    "term": "Pricing Conditions",
+    "definition": "The system's ability (T-Code VK11) to determine prices, discounts, surcharges, and taxes, which are stored in condition records and applied automatically during sales order processing."
+  },
+  {
+    "term": "Sales Order",
+    "definition": "The customer's formal request to the company to supply goods or services (T-Code VA01). It triggers background checks for material availability and credit limits."
+  },
+  {
+    "term": "Outbound Delivery",
+    "definition": "A document (T-Code VL01N) that initiates all subsequent shipping activities, such as picking, packing, and posting the goods issue."
+  },
+  {
+    "term": "Billing Document",
+    "definition": "An invoice (T-Code VF01) sent to the customer, which simultaneously creates a corresponding accounts receivable entry in the FI module."
+  },
+  {
+    "term": "Warehouse Management (WM)",
+    "definition": "The classic, integrated ERP module providing foundational capabilities for managing inventory at the storage bin level within a warehouse. Best suited for smaller, less complex warehouse environments."
+  },
+  {
+    "term": "Extended Warehouse Management (EWM)",
+    "definition": "SAP's advanced, strategic solution to manage complex, high-volume distribution centers. It offers advanced capabilities like Slotting, Labor Management, and Task Interleaving."
+  },
+  {
+    "term": "Transport Management System (CTS)",
+    "definition": "A fundamental tool for SAP system administrators (T-Code STMS) to manage and control the movement of development objects and configuration settings (transports) across the SAP system landscape."
+  },
+  {
+    "term": "Dynpro",
+    "definition": "The classic user interface technology for applications running in the SAP GUI, consisting of a screen with its layout of UI elements and corresponding flow logic (PBO and PAI)."
+  },
+  {
+    "term": "SAP List Viewer (ALV)",
+    "definition": "A framework that provides a standardized, interactive grid display for tabular data with built-in functionalities like sorting, filtering, and exporting."
+  },
+  {
+    "term": "Smart Forms",
+    "definition": "A graphical design tool used to create and maintain formatted output for printing, such as invoices, purchase orders, or delivery notes."
+  },
+  {
+    "term": "Web Dynpro for ABAP",
+    "definition": "The successor to classic Dynpro, providing a framework for developing professional, browser-based applications based on the Model-View-Controller (MVC) architectural pattern."
+  },
+  {
+    "term": "ABAP RESTful Application Programming Model (RAP)",
+    "definition": "The current and strategic development model for SAP S/4HANA and cloud environments for efficiently building enterprise-ready, OData-based services and Fiori applications."
+  },
+  {
+    "term": "Client",
+    "definition": "The highest-level organizational unit within an SAP system. It allows a single physical SAP installation to be partitioned into multiple logical sub-systems that operate as independent business units."
+  },
+  {
+    "term": "Change and Transport System (CTS)",
+    "definition": "The set of tools and processes used to record and move customizations and development objects (transports) from one SAP system to another."
+  },
+  {
+    "term": "Universal Journal (ACDOCA)",
+    "definition": "The most profound innovation within SAP S/4HANA Finance. It introduces a new, single table (ACDOCA) for all accounting line items, serving as the 'single source of truth' for both FI and CO."
+  },
+  {
+    "term": "Simplification List",
+    "definition": "A detailed, release-specific document that describes every functional and technical change between SAP ERP 6.0 and the target SAP S/4HANA version. It is the essential guide for any S/4HANA conversion."
+  },
+  {
+    "term": "SAP Readiness Check",
+    "definition": "A tool that analyzes a customer's existing SAP ERP system and compares its usage data and custom code against the Simplification Item Catalog to produce a personalized migration report."
+  },
+  {
+    "term": "Accelerated SAP (ASAP)",
+    "definition": "The legacy, five-phase framework based on a traditional waterfall model that was the standard for implementing SAP ERP. It includes phases like Project Preparation, Business Blueprint, and Realization."
+  },
+  {
+    "term": "SAP Activate",
+    "definition": "The modern, flexible, and agile-inspired methodology that is the successor to ASAP. It is built on three pillars: SAP Best Practices, Guided Configuration, and a six-phase project approach (Discover, Prepare, Explore, Realize, Deploy, Run)."
+  },
+  {
+    "term": "SAP for Retail (IS-Retail)",
+    "definition": "A comprehensive, fully integrated industry-specific solution that maps the entire retail value chain, from merchandise planning to point-of-sale (POS) transactions."
+  },
+  {
+    "term": "SAP for Utilities (IS-U)",
+    "definition": "A process-oriented sales and information system designed to support the complete business cycle of utility and waste disposal companies, including electricity, gas, and water providers."
+  },
+  {
+    "term": "SAP for Oil & Gas (IS-Oil)",
+    "definition": "A specialized solution that addresses the complex supply chain and financial processes of the oil and gas industry, covering upstream, midstream, and downstream operations."
+  },
+  {
+    "term": "F-02",
+    "definition": "A T-Code to Enter G/L Account Posting in the FI-GL module."
+  },
+  {
+    "term": "FB50",
+    "definition": "An 'Enjoy' T-Code to Enter a G/L Account Document in the FI-GL module."
+  },
+  {
+    "term": "FS00",
+    "definition": "A T-Code to Centrally Create, Change, or Display a G/L Account in the FI-GL module."
+  },
+  {
+    "term": "FBL3N",
+    "definition": "A T-Code to display G/L Account Line Items in the FI-GL module."
+  },
+  {
+    "term": "FS10N",
+    "definition": "A T-Code to display G/L Account Balances in the FI-GL module."
+  },
+  {
+    "term": "F-43",
+    "definition": "A T-Code to Enter a Vendor Invoice in the FI-AP module."
+  },
+  {
+    "term": "FBL1N",
+    "definition": "A T-Code to display Vendor Line Items in the FI-AP module."
+  },
+  {
+    "term": "FK10N",
+    "definition": "A T-Code to display Vendor Balances in the FI-AP module."
+  },
+  {
+    "term": "F-28",
+    "definition": "A T-Code to Post Incoming Payments from customers in the FI-AR module."
+  },
+  {
+    "term": "FBL5N",
+    "definition": "A T-Code to display Customer Line Items in the FI-AR module."
+  },
+  {
+    "term": "FD10N",
+    "definition": "A T-Code to display Customer Balances in the FI-AR module."
+  },
+  {
+    "term": "AS01",
+    "definition": "A T-Code to Create an Asset Master Record in the FI-AA module."
+  },
+  {
+    "term": "AS02",
+    "definition": "A T-Code to Change an Asset Master Record in the FI-AA module."
+  },
+  {
+    "term": "AS03",
+    "definition": "A T-Code to Display an Asset Master Record in the FI-AA module."
+  },
+  {
+    "term": "AW01N",
+    "definition": "The 'Asset Explorer' T-Code used to get a comprehensive overview of an asset's values and transactions in the FI-AA module."
+  },
+  {
+    "term": "F-90",
+    "definition": "A T-Code for Asset Acquisition with a Vendor in the FI-AA module."
+  },
+  {
+    "term": "KOB1",
+    "definition": "A T-Code to display Actual Line Items for Internal Orders in the CO module."
+  },
+  {
+    "term": "KSB1",
+    "definition": "A T-Code to display Actual Line Items for Cost Centers in the CO module."
+  },
+  {
+    "term": "F110",
+    "definition": "A T-Code to manage Parameters for the Automatic Payment Program in the FI-AP module."
+  },
+  {
+    "term": "FBR2",
+    "definition": "A T-Code to Reset Cleared Items in the FI module."
+  },
+  {
+    "term": "FB08",
+    "definition": "A T-Code to Reverse a Document in the FI module."
+  },
+  {
+    "term": "FTXP",
+    "definition": "A T-Code to Maintain Tax Codes in the FI module."
+  },
+  {
+    "term": "OBYC",
+    "definition": "A T-Code used for Automatic Account Assignment configuration between the MM and FI modules."
+  },
+  {
+    "term": "MM01",
+    "definition": "A T-Code to Create a Material Master record in the MM module."
+  },
+  {
+    "term": "MM02",
+    "definition": "A T-Code to Change a Material Master record in the MM module."
+  },
+  {
+    "term": "MM03",
+    "definition": "A T-Code to Display a Material Master record in the MM module."
+  },
+  {
+    "term": "XK01",
+    "definition": "A T-Code to Centrally Create a Vendor Master record."
+  },
+  {
+    "term": "XK02",
+    "definition": "A T-Code to Centrally Change a Vendor Master record."
+  },
+  {
+    "term": "XK03",
+    "definition": "A T-Code to Centrally Display a Vendor Master record."
+  },
+  {
+    "term": "ME11",
+    "definition": "A T-Code to Create a Purchasing Info Record in the MM module."
+  },
+  {
+    "term": "ME01",
+    "definition": "A T-Code to Maintain a Source List for materials in the MM module."
+  },
+  {
+    "term": "ME51N",
+    "definition": "A T-Code to Create a Purchase Requisition in the MM module."
+  },
+  {
+    "term": "ME52N",
+    "definition": "A T-Code to Change a Purchase Requisition in the MM module."
+  },
+  {
+    "term": "ME53N",
+    "definition": "A T-Code to Display a Purchase Requisition in the MM module."
+  },
+  {
+    "term": "ME21N",
+    "definition": "A T-Code to Create a Purchase Order in the MM module."
+  },
+  {
+    "term": "ME22N",
+    "definition": "A T-Code to Change a Purchase Order in the MM module."
+  },
+  {
+    "term": "ME23N",
+    "definition": "A T-Code to Display a Purchase Order in the MM module."
+  },
+  {
+    "term": "ME29N",
+    "definition": "A T-Code to Release (Approve) a Purchase Order in the MM module."
+  },
+  {
+    "term": "ME31K",
+    "definition": "A T-Code to Create a purchasing Contract in the MM module."
+  },
+  {
+    "term": "ME31L",
+    "definition": "A T-Code to Create a purchasing Scheduling Agreement in the MM module."
+  },
+  {
+    "term": "MIGO",
+    "definition": "A T-Code to Post a Goods Movement (e.g., goods receipt, goods issue) in Inventory Management."
+  },
+  {
+    "term": "MB1A",
+    "definition": "A T-Code for Goods Withdrawal in Inventory Management."
+  },
+  {
+    "term": "MB1B",
+    "definition": "A T-Code for Transfer Posting of materials in Inventory Management."
+  },
+  {
+    "term": "MB1C",
+    "definition": "A T-Code for Other Goods Receipts in Inventory Management."
+  },
+  {
+    "term": "MB51",
+    "definition": "A T-Code to display a list of Material Documents in Inventory Management."
+  },
+  {
+    "term": "MB52",
+    "definition": "A T-Code to display a List of Warehouse Stocks on Hand in Inventory Management."
+  },
+  {
+    "term": "MMBE",
+    "definition": "A T-Code to get a Stock Overview for a material in Inventory Management."
+  },
+  {
+    "term": "MI01",
+    "definition": "A T-Code to Create a Physical Inventory Document in Inventory Management."
+  },
+  {
+    "term": "MIRO",
+    "definition": "A T-Code to Enter an Incoming Invoice for a purchase order in Invoice Verification."
+  },
+  {
+    "term": "MR8M",
+    "definition": "A T-Code to Cancel an Invoice Document in Invoice Verification."
+  },
+  {
+    "term": "MRBR",
+    "definition": "A T-Code to Release Blocked Invoices in Invoice Verification."
+  },
+  {
+    "term": "XD01",
+    "definition": "A T-Code to Centrally Create a Customer Master record in the SD module."
+  },
+  {
+    "term": "XD02",
+    "definition": "A T-Code to Centrally Change a Customer Master record in the SD module."
+  },
+  {
+    "term": "XD03",
+    "definition": "A T-Code to Centrally Display a Customer Master record in the SD module."
+  },
+  {
+    "term": "VD05",
+    "definition": "A T-Code to Block a Customer in the SD module."
+  },
+  {
+    "term": "VK11",
+    "definition": "A T-Code to Create a Condition Record (for pricing) in the SD module."
+  },
+  {
+    "term": "VK12",
+    "definition": "A T-Code to Change a Condition Record (for pricing) in the SD module."
+  },
+  {
+    "term": "VK13",
+    "definition": "A T-Code to Display a Condition Record (for pricing) in the SD module."
+  },
+  {
+    "term": "VA11",
+    "definition": "A T-Code to Create a sales Inquiry in the SD module."
+  },
+  {
+    "term": "VA21",
+    "definition": "A T-Code to Create a sales Quotation in the SD module."
+  },
+  {
+    "term": "VA01",
+    "definition": "A T-Code to Create a Sales Order in the SD module."
+  },
+  {
+    "term": "VA02",
+    "definition": "A T-Code to Change a Sales Order in the SD module."
+  },
+  {
+    "term": "VA03",
+    "definition": "A T-Code to Display a Sales Order in the SD module."
+  },
+  {
+    "term": "VA05",
+    "definition": "A T-Code to get a List of Sales Orders in the SD module."
+  },
+  {
+    "term": "VA41",
+    "definition": "A T-Code to Create a sales Contract in the SD module."
+  },
+  {
+    "term": "VL01N",
+    "definition": "A T-Code to Create an Outbound Delivery with an Order Reference in Shipping."
+  },
+  {
+    "term": "VL02N",
+    "definition": "A T-Code to Change an Outbound Delivery in Shipping."
+  },
+  {
+    "term": "VL03N",
+    "definition": "A T-Code to Display an Outbound Delivery in Shipping."
+  },
+  {
+    "term": "VL04",
+    "definition": "A T-Code to Process a Delivery Due List in Shipping."
+  },
+  {
+    "term": "VL09",
+    "definition": "A T-Code to Cancel a Goods Issue for a Delivery Note in Shipping."
+  },
+  {
+    "term": "VT01N",
+    "definition": "A T-Code to Create a Shipment in Shipping."
+  },
+  {
+    "term": "VF01",
+    "definition": "A T-Code to Create a Billing Document (Invoice) in Billing."
+  },
+  {
+    "term": "VF02",
+    "definition": "A T-Code to Change a Billing Document in Billing."
+  },
+  {
+    "term": "VF03",
+    "definition": "A T-Code to Display a Billing Document in Billing."
+  },
+  {
+    "term": "VF11",
+    "definition": "A T-Code to Cancel a Billing Document in Billing."
+  },
+  {
+    "term": "VF04",
+    "definition": "A T-Code to Process a Billing Due List in Billing."
   }
 ]
-
