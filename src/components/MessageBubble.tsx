@@ -17,6 +17,9 @@ interface MessageBubbleProps {
 }
 
 const LeaveApplicationForm = ({ onSubmit }: { onSubmit?: (data: any) => void }) => {
+  // --- 👇 THIS IS THE FIX (Part 1) ---
+  // We add a new state to track if the form has been submitted.
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [formData, setFormData] = useState({
     employeeName: "",
     startDate: "",
@@ -31,7 +34,10 @@ const LeaveApplicationForm = ({ onSubmit }: { onSubmit?: (data: any) => void }) 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (onSubmit) onSubmit(formData);
+    if (onSubmit) {
+        onSubmit(formData);
+        setIsSubmitted(true); // After submitting, we update the state.
+    }
   };
 
   return (
@@ -44,6 +50,7 @@ const LeaveApplicationForm = ({ onSubmit }: { onSubmit?: (data: any) => void }) 
           name="employeeName"
           value={formData.employeeName}
           onChange={handleChange}
+          disabled={isSubmitted} // Disable input after submission
           required
         />
       </div>
@@ -56,6 +63,7 @@ const LeaveApplicationForm = ({ onSubmit }: { onSubmit?: (data: any) => void }) 
             type="date"
             value={formData.startDate}
             onChange={handleChange}
+            disabled={isSubmitted} // Disable input after submission
             required
           />
         </div>
@@ -67,6 +75,7 @@ const LeaveApplicationForm = ({ onSubmit }: { onSubmit?: (data: any) => void }) 
             type="date"
             value={formData.endDate}
             onChange={handleChange}
+            disabled={isSubmitted} // Disable input after submission
             required
           />
         </div>
@@ -78,15 +87,22 @@ const LeaveApplicationForm = ({ onSubmit }: { onSubmit?: (data: any) => void }) 
           name="reason"
           value={formData.reason}
           onChange={handleChange}
+          disabled={isSubmitted} // Disable input after submission
           required
         />
       </div>
-      <Button type="submit" className="w-full mt-2">
-        Submit Application
-      </Button>
+      
+      {/* --- 👇 THIS IS THE FIX (Part 2) --- */}
+      {/* We only show the button if the form has NOT been submitted. */}
+      {!isSubmitted && (
+        <Button type="submit" className="w-full mt-2">
+            Submit Application
+        </Button>
+      )}
     </form>
   );
 };
+// --- END OF FIX ---
 
 export interface MessageAction {
   label: string;
@@ -144,8 +160,6 @@ export const MessageBubble = ({ message, onFormSubmit }: MessageBubbleProps) => 
             : "bg-muted text-card-foreground"
         )}
       >
-        {/* --- 👇 THIS IS THE FIX --- */}
-        {/* The copy button will now ONLY appear for assistant text messages. */}
         {!isUser && message.data.type === 'text' && (
           <Button
             variant="ghost"
@@ -160,7 +174,6 @@ export const MessageBubble = ({ message, onFormSubmit }: MessageBubbleProps) => 
             )}
           </Button>
         )}
-        {/* --- END OF FIX --- */}
         
         {message.data.type === "leave_application_form" && (
           <LeaveApplicationForm onSubmit={onFormSubmit} />
