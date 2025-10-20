@@ -24,6 +24,10 @@
     "definition": "FB60 is a standard SAP FI transaction code used to enter a vendor (supplier) invoice when no purchase order reference is required. It posts a non-PO related invoice into Accounts Payable."
   },
   {
+    "term": "Vendor Payment Advice",
+    "definition": "A Vendor Payment Advice is a document sent to a supplier detailing which invoices are being paid in a particular payment. It is a standard output of the Automatic Payment Program (T-Code F110). After a payment run is successfully executed in F110, the system generates the payment documents and the corresponding advices, which can then be printed, emailed, or sent via EDI to the vendor."
+  },
+  {
     "term": "Financial Accounting (FI)",
     "definition": "Oriented towards external reporting requirements, providing the data necessary for statutory and legal reporting, such as balance sheets and profit and loss statements. Its key components include the General Ledger (G/L), Accounts Payable (AP), Accounts Receivable (AR), and Asset Accounting (AA)."
   },
@@ -766,5 +770,35 @@
   {
     "term": "VF04",
     "definition": "A T-Code to Process a Billing Due List in Billing."
+  },
+  {
+    "term": "Vendor Payment Advice",
+    "definition": "A Vendor Payment Advice is a document sent to a supplier detailing which invoices are being paid in a particular payment. It is typically generated automatically after a payment run is executed using T-Code F110 (Automatic Payment Program). The output can be viewed or reprinted from the payment run logs."
+  },
+  {
+    "term": "ME21N",
+    "module": "MM",
+    "description": "Transaction code used to create Purchase Orders (PO) in SAP. It allows users to specify vendor, materials, quantities, and delivery dates. The 'N' denotes the EnjoySAP version with an improved user interface."
+  },
+  {
+    "term": "CO-PA",
+    "module": "CO",
+    "description": "Profitability Analysis — a submodule of Controlling (CO) that helps analyze profits by different dimensions such as product, customer, region, or sales organization. It enables businesses to assess profitability and make strategic decisions."
+  },
+  {
+    "term": "MMR",
+    "module": "MM",
+    "description": "Material Master Record — the central repository of information for a material in SAP. It contains data relevant to various departments like purchasing, sales, accounting, and inventory management."
+  },
+  {
+    "term": "S/4HANA Migration Cockpit",
+    "module": "S/4HANA",
+    "description": "A tool provided by SAP to facilitate the migration of data from legacy systems or SAP ERP to SAP S/4HANA. It offers predefined migration objects and templates for a guided, simplified migration process."
+  },
+  {
+    "term": "ALE/IDoc",
+    "module": "Technical Integration",
+    "description": "Application Link Enabling (ALE) and Intermediate Document (IDoc) are SAP technologies for data exchange between SAP systems or between SAP and external systems. ALE defines the communication framework, while IDoc is the standard data container format."
   }
+
 ]
