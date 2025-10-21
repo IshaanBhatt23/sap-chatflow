@@ -1,0 +1,34 @@
+[
+  {
+    "id": "SO-1001",
+    "customer": "Global Tech Inc.",
+    "material": "PUMP-1001",
+    "quantity": 10,
+    "status": "Open",
+    "value": "15,450.00 USD"
+  },
+  {
+    "id": "SO-1002",
+    "customer": "Innovate Solutions",
+    "material": "VALVE-200",
+    "quantity": 50,
+    "status": "Open",
+    "value": "8,200.50 EUR"
+  },
+  {
+    "id": "SO-1003",
+    "customer": "Quantum Supplies",
+    "material": "BEARING-A5",
+    "quantity": 200,
+    "status": "In Process",
+    "value": "21,000.00 USD"
+  },
+  {
+    "id": "SO-1004",
+    "customer": "Global Tech Inc.",
+    "material": "VALVE-200",
+    "quantity": 25,
+    "status": "Delivered",
+    "value": "4,100.25 EUR"
+  }
+]
