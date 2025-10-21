@@ -18,6 +18,7 @@ const __dirname = path.dirname(__filename);
 const leaveDbPath = path.join(__dirname, 'tools', 'leave_applications.json');
 const stockDbPath = path.join(__dirname, 'tools', 'stock_level.json');
 const salesOrdersDbPath = path.join(__dirname, 'tools', 'sales_orders.json');
+const purchaseOrdersDbPath = path.join(__dirname, 'tools', 'purchase_orders.json'); // --- NEW PATH
 
 // --- Load the stock data for fuzzy search index ---
 const stockData = JSON.parse(fs.readFileSync(stockDbPath, 'utf-8'));
@@ -30,7 +31,7 @@ const stockFuseOptions = {
 };
 const stockFuse = new Fuse(stockList, stockFuseOptions);
 
-// --- NEW: Load Sales Order data for fuzzy search index ---
+// --- Load Sales Order data for fuzzy search index ---
 const salesOrderData = JSON.parse(fs.readFileSync(salesOrdersDbPath, 'utf-8'));
 const salesOrderFuseOptions = {
   keys: ['customer'], // We will fuzzy search on the 'customer' field
@@ -38,6 +39,15 @@ const salesOrderFuseOptions = {
   threshold: 0.4,
 };
 const salesOrderFuse = new Fuse(salesOrderData, salesOrderFuseOptions);
+
+// --- NEW: Load Purchase Order data for fuzzy search index ---
+const purchaseOrderData = JSON.parse(fs.readFileSync(purchaseOrdersDbPath, 'utf-8'));
+const purchaseOrderFuseOptions = {
+  keys: ['vendor'], // We will fuzzy search on the 'vendor' field
+  includeScore: true,
+  threshold: 0.4,
+};
+const purchaseOrderFuse = new Fuse(purchaseOrderData, purchaseOrderFuseOptions);
 // --- END OF NEW LOAD ---
 
 const tools = [
@@ -61,6 +71,15 @@ const tools = [
     parameters: {
       "customer": "(Optional) The name of the customer to filter by (supports fuzzy matching).",
       "status": "(Optional) The status of the orders to filter by (e.g., 'Open')."
+    }
+  },
+  // --- NEW TOOL DEFINITION ---
+  {
+    name: 'get_purchase_orders',
+    description: 'Use this tool to get a list of purchase orders. Can be filtered by vendor name or status (e.g., "ordered", "delivered").',
+    parameters: {
+      "vendor": "(Optional) The name of the vendor to filter by (supports fuzzy matching).",
+      "status": "(Optional) The status of the orders to filter by (e.g., 'Ordered')."
     }
   }
 ];
@@ -130,24 +149,20 @@ app.post('/api/chat', async (req, res) => {
           };
           break;
 
-        // --- MODIFIED: get_sales_orders case ---
         case 'get_sales_orders':
           let salesOrdersResults = salesOrderData; // Start with the full list
 
-          // Step 1: Apply fuzzy search for customer if provided
           if (decision.parameters.customer) {
             const searchTerm = decision.parameters.customer;
             const searchResults = salesOrderFuse.search(searchTerm);
-            salesOrdersResults = searchResults.map(result => result.item); // Get the original objects back
+            salesOrdersResults = searchResults.map(result => result.item);
           }
 
-          // Step 2: Apply exact filter for status if provided
           if (decision.parameters.status) {
             const status = decision.parameters.status.toLowerCase();
             salesOrdersResults = salesOrdersResults.filter(order => order.status.toLowerCase() === status);
           }
 
-          // Step 3: Map lowercase keys (from json) to uppercase keys (for frontend)
           const mappedData = salesOrdersResults.map(order => ({
             'ID': order.id,
             'Customer': order.customer,
@@ -160,7 +175,49 @@ app.post('/api/chat', async (req, res) => {
           toolResult = {
             type: 'table',
             tableColumns: ['ID', 'Customer', 'Material', 'Quantity', 'Status', 'Value'],
-            tableData: mappedData, // Use the new mapped data
+            tableData: mappedData,
+          };
+          break;
+
+        // --- MODIFIED LOGIC FOR PURCHASE ORDERS ---
+        case 'get_purchase_orders':
+          let purchaseOrdersResults = purchaseOrderData;
+
+          // Step 1: Apply fuzzy search for vendor if provided
+          if (decision.parameters.vendor) {
+            const searchTerm = decision.parameters.vendor;
+            const searchResults = purchaseOrderFuse.search(searchTerm);
+            purchaseOrdersResults = searchResults.map(result => result.item);
+          }
+
+          // Step 2: Apply fuzzy search for status on the current results
+          if (decision.parameters.status) {
+            const statusSearchTerm = decision.parameters.status;
+            
+            // Create a temporary Fuse index to search the status field of the current results
+            const statusFuse = new Fuse(purchaseOrdersResults, {
+              keys: ['status'],
+              includeScore: true,
+              threshold: 0.4, // Adjust this threshold for more/less strict matching
+            });
+            
+            const statusSearchResults = statusFuse.search(statusSearchTerm);
+            purchaseOrdersResults = statusSearchResults.map(result => result.item);
+          }
+
+          const poMappedData = purchaseOrdersResults.map(order => ({
+            'ID': order.id,
+            'Vendor': order.vendor,
+            'Material': order.material,
+            'Quantity': order.quantity,
+            'Status': order.status,
+            'Value': order.value
+          }));
+
+          toolResult = {
+            type: 'table',
+            tableColumns: ['ID', 'Vendor', 'Material', 'Quantity', 'Status', 'Value'],
+            tableData: poMappedData,
           };
           break;
         // --- END OF MODIFIED LOGIC ---
