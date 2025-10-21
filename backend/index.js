@@ -149,18 +149,30 @@ app.post('/api/chat', async (req, res) => {
           };
           break;
 
+        // --- MODIFIED LOGIC FOR SALES ORDERS ---
         case 'get_sales_orders':
           let salesOrdersResults = salesOrderData; // Start with the full list
 
+          // Step 1: Apply fuzzy search for customer if provided
           if (decision.parameters.customer) {
             const searchTerm = decision.parameters.customer;
             const searchResults = salesOrderFuse.search(searchTerm);
             salesOrdersResults = searchResults.map(result => result.item);
           }
 
+          // Step 2: Apply fuzzy search for status on the current results
           if (decision.parameters.status) {
-            const status = decision.parameters.status.toLowerCase();
-            salesOrdersResults = salesOrdersResults.filter(order => order.status.toLowerCase() === status);
+            const statusSearchTerm = decision.parameters.status;
+            
+            // Create a temporary Fuse index to search the status field of the current results
+            const statusFuse = new Fuse(salesOrdersResults, {
+              keys: ['status'],
+              includeScore: true,
+              threshold: 0.4,
+            });
+            
+            const statusSearchResults = statusFuse.search(statusSearchTerm);
+            salesOrdersResults = statusSearchResults.map(result => result.item);
           }
 
           const mappedData = salesOrdersResults.map(order => ({
@@ -178,6 +190,7 @@ app.post('/api/chat', async (req, res) => {
             tableData: mappedData,
           };
           break;
+        // --- END OF MODIFIED LOGIC ---
 
         // --- MODIFIED LOGIC FOR PURCHASE ORDERS ---
         case 'get_purchase_orders':
