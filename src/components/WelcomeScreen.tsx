@@ -8,7 +8,7 @@ interface WelcomeScreenProps {
 const promptSuggestions = [
   {
     icon: <Package className="h-5 w-5" />,
-    text: "Check stock levels for a material",
+    text: "Check stock levels",
   },
   {
     icon: <FileText className="h-5 w-5" />,

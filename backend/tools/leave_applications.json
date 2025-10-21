@@ -54,5 +54,13 @@
     "endDate": "2025-12-04",
     "reason": "gwag",
     "status": "Submitted"
+  },
+  {
+    "id": 1761046230236,
+    "employeeName": "Ishaan",
+    "startDate": "2025-10-22",
+    "endDate": "2025-10-25",
+    "reason": "Diwali",
+    "status": "Submitted"
   }
 ]

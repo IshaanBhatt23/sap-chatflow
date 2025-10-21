@@ -1,0 +1,5 @@
+{
+    "PUMP-1001": { "Description": "Centrifugal Water Pump", "Stock Level": "152 units", "Plant": "1000" },
+    "VALVE-200": { "Description": "Industrial Ball Valve", "Stock Level": "840 units", "Plant": "1000" },
+    "BEARING-A5": { "Description": "Standard Ball Bearing", "Stock Level": "3200 units", "Plant": "2000" }
+}
