@@ -12,7 +12,7 @@ const promptSuggestions = [
   },
   {
     icon: <FileText className="h-5 w-5" />,
-    text: "Find open sales orders",
+    text: "Find sales orders",
   },
   {
     icon: <Calendar className="h-5 w-5" />,
