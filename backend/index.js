@@ -18,7 +18,8 @@ const __dirname = path.dirname(__filename);
 const leaveDbPath = path.join(__dirname, 'tools', 'leave_applications.json');
 const stockDbPath = path.join(__dirname, 'tools', 'stock_level.json');
 const salesOrdersDbPath = path.join(__dirname, 'tools', 'sales_orders.json');
-const purchaseOrdersDbPath = path.join(__dirname, 'tools', 'purchase_orders.json'); // --- NEW PATH
+const purchaseOrdersDbPath = path.join(__dirname, 'tools', 'purchase_orders.json');
+const knowledgeDbPath = path.join(__dirname, 'knowledge_base.json');
 
 // --- Load the stock data for fuzzy search index ---
 const stockData = JSON.parse(fs.readFileSync(stockDbPath, 'utf-8'));
@@ -34,23 +35,41 @@ const stockFuse = new Fuse(stockList, stockFuseOptions);
 // --- Load Sales Order data for fuzzy search index ---
 const salesOrderData = JSON.parse(fs.readFileSync(salesOrdersDbPath, 'utf-8'));
 const salesOrderFuseOptions = {
-  keys: ['customer'], // We will fuzzy search on the 'customer' field
+  keys: ['customer'],
   includeScore: true,
   threshold: 0.4,
 };
 const salesOrderFuse = new Fuse(salesOrderData, salesOrderFuseOptions);
 
-// --- NEW: Load Purchase Order data for fuzzy search index ---
+// --- Load Purchase Order data for fuzzy search index ---
 const purchaseOrderData = JSON.parse(fs.readFileSync(purchaseOrdersDbPath, 'utf-8'));
 const purchaseOrderFuseOptions = {
-  keys: ['vendor'], // We will fuzzy search on the 'vendor' field
+  keys: ['vendor'],
   includeScore: true,
   threshold: 0.4,
 };
 const purchaseOrderFuse = new Fuse(purchaseOrderData, purchaseOrderFuseOptions);
-// --- END OF NEW LOAD ---
 
+// --- Load Knowledge Base data for fuzzy search index ---
+const knowledgeData = JSON.parse(fs.readFileSync(knowledgeDbPath, 'utf-8'));
+const knowledgeFuseOptions = {
+  keys: ['term', 'definition'],
+  includeScore: true,
+  threshold: 0.3, // Stricter threshold for definitions
+};
+const knowledgeFuse = new Fuse(knowledgeData, knowledgeFuseOptions);
+// --- END OF LOADS ---
+
+// --- MODIFIED TOOLS ARRAY ---
 const tools = [
+  // --- NEW TOOL FOR KNOWLEDGE BASE ---
+  {
+    name: 'get_sap_definition',
+    description: "Use this tool to find the definition or explanation of an SAP-specific term, concept, T-code, or abbreviation (e.g., 'What is Fiori?', 'Define S/4HANA', 'what is fb60').",
+    parameters: {
+      "term": "The term, concept, or abbreviation the user is asking about."
+    }
+  },
   {
     name: 'show_leave_application_form',
     description: 'Use this tool when the user wants to apply for leave or request time off.',
@@ -58,7 +77,7 @@ const tools = [
   },
   {
     name: 'query_inventory',
-    description: 'Use this tool to get stock levels. It can show all items, a specific item, or items filtered by quantity.',
+    description: "Use this tool to get stock levels or check for specific materials. It can show all items, a specific item (e.g., 'pump'), or items filtered by quantity.",
     parameters: {
       "material_id": "(Optional) The specific ID or name of the material, e.g., 'PUMP-1001' or 'pump'",
       "comparison": "(Optional) The filter operator, such as 'less than' or 'greater than'",
@@ -73,7 +92,6 @@ const tools = [
       "status": "(Optional) The status of the orders to filter by (e.g., 'Open')."
     }
   },
-  // --- NEW TOOL DEFINITION ---
   {
     name: 'get_purchase_orders',
     description: 'Use this tool to get a list of purchase orders. Can be filtered by vendor name or status (e.g., "ordered", "delivered").',
@@ -91,17 +109,18 @@ const getToolsPrompt = () => {
   ${tools.map(tool => `- ${tool.name}: ${tool.description} (Parameters: ${JSON.stringify(tool.parameters)})`).join('\n')}
 
   Based on the user's request, you MUST decide whether to have a normal conversation or to use a tool.
-  If you use a tool, you MUST extract any relevant parameters from the user's request.
   Your response MUST be a single, valid JSON object with ONE of the following formats:
   1. For a normal text response: { "type": "text", "content": "Your conversational response here." }
   2. To use a tool: { "type": "tool_call", "tool_name": "name_of_the_tool", "parameters": { "parameter_name": "extracted_value" } }`;
 };
 
+// --- HEAVILY MODIFIED /api/chat ENDPOINT ---
 app.post('/api/chat', async (req, res) => {
   const { messageHistory } = req.body;
   const userQuery = messageHistory[messageHistory.length - 1].text;
 
   try {
+    // --- STEP 1: Let Llama 3 decide which tool to use (or none) ---
     const decisionMakingPrompt = `User's request: "${userQuery}"\n\nBased on this request and the available tools, what is the correct JSON response?`;
 
     const decisionResponse = await axios.post(OLLAMA_API_URL, {
@@ -116,16 +135,63 @@ app.post('/api/chat', async (req, res) => {
 
     const decision = JSON.parse(decisionResponse.data.message.content);
 
+    // --- STEP 2: Execute the decision ---
     if (decision.type === 'tool_call') {
       console.log(`AI decided to use tool: ${decision.tool_name} with params:`, decision.parameters);
       let toolResult;
 
       switch (decision.tool_name) {
+        
+        // --- NEW CASE FOR KNOWLEDGE BASE ---
+        case 'get_sap_definition': {
+          const searchTerm = decision.parameters.term;
+          const kbSearchResults = knowledgeFuse.search(searchTerm);
+          const goodKbMatch = kbSearchResults.length > 0 && kbSearchResults[0].score < 0.4;
+
+          if (goodKbMatch) {
+            // Found a match in our local KB
+            console.log('Found match in Knowledge Base:', kbSearchResults[0].item.term);
+            const definition = kbSearchResults[0].item.definition;
+
+            const rephrasePrompt = `You are a helpful SAP assistant. A user asked: "${userQuery}".
+I found this relevant information in our knowledge base: "${definition}".
+Please present this information to the user in a natural, conversational, and helpful way. Just provide the final text response, do not say "Here is the information I found".`;
+            
+            const rephraseResponse = await axios.post(OLLAMA_API_URL, {
+              model: 'llama3',
+              messages: [
+                { role: 'system', content: 'You are a helpful SAP assistant.' },
+                { role: 'user', content: rephrasePrompt }
+              ],
+              stream: false,
+            });
+            toolResult = { type: 'text', content: rephraseResponse.data.message.content };
+
+          } else {
+            // No match in local KB, let Llama 3 answer from its general knowledge
+            console.log(`No KB match for "${searchTerm}". Asking Llama 3 for a general definition.`);
+            
+            const fallbackPrompt = `You are a helpful SAP assistant. The user asked for a definition of "${searchTerm}", but it wasn't found in our specific knowledge base. Please provide a general, conversational definition based on your own knowledge. If you don't know, just say so.`;
+
+            const fallbackResponse = await axios.post(OLLAMA_API_URL, {
+              model: 'llama3',
+              messages: [
+                { role: 'system', content: 'You are a helpful SAP assistant.' },
+                { role: 'user', content: fallbackPrompt }
+              ],
+              stream: false,
+            });
+            toolResult = { type: 'text', content: fallbackResponse.data.message.content };
+          }
+          break;
+        }
+        // --- END OF NEW CASE ---
+
         case 'show_leave_application_form':
           toolResult = { type: 'leave_application_form' };
           break;
         
-        case 'query_inventory':
+        case 'query_inventory': {
           let inventory = stockList;
           if (decision.parameters.material_id) {
             const searchTerm = decision.parameters.material_id;
@@ -148,33 +214,21 @@ app.post('/api/chat', async (req, res) => {
             tableData: inventory,
           };
           break;
+        }
 
-        // --- MODIFIED LOGIC FOR SALES ORDERS ---
-        case 'get_sales_orders':
-          let salesOrdersResults = salesOrderData; // Start with the full list
-
-          // Step 1: Apply fuzzy search for customer if provided
+        case 'get_sales_orders': {
+          let salesOrdersResults = salesOrderData; 
           if (decision.parameters.customer) {
             const searchTerm = decision.parameters.customer;
             const searchResults = salesOrderFuse.search(searchTerm);
             salesOrdersResults = searchResults.map(result => result.item);
           }
-
-          // Step 2: Apply fuzzy search for status on the current results
           if (decision.parameters.status) {
             const statusSearchTerm = decision.parameters.status;
-            
-            // Create a temporary Fuse index to search the status field of the current results
-            const statusFuse = new Fuse(salesOrdersResults, {
-              keys: ['status'],
-              includeScore: true,
-              threshold: 0.4,
-            });
-            
+            const statusFuse = new Fuse(salesOrdersResults, { keys: ['status'], includeScore: true, threshold: 0.4 });
             const statusSearchResults = statusFuse.search(statusSearchTerm);
             salesOrdersResults = statusSearchResults.map(result => result.item);
           }
-
           const mappedData = salesOrdersResults.map(order => ({
             'ID': order.id,
             'Customer': order.customer,
@@ -183,41 +237,27 @@ app.post('/api/chat', async (req, res) => {
             'Status': order.status,
             'Value': order.value
           }));
-
           toolResult = {
             type: 'table',
             tableColumns: ['ID', 'Customer', 'Material', 'Quantity', 'Status', 'Value'],
             tableData: mappedData,
           };
           break;
-        // --- END OF MODIFIED LOGIC ---
+        }
 
-        // --- MODIFIED LOGIC FOR PURCHASE ORDERS ---
-        case 'get_purchase_orders':
+        case 'get_purchase_orders': {
           let purchaseOrdersResults = purchaseOrderData;
-
-          // Step 1: Apply fuzzy search for vendor if provided
           if (decision.parameters.vendor) {
             const searchTerm = decision.parameters.vendor;
             const searchResults = purchaseOrderFuse.search(searchTerm);
             purchaseOrdersResults = searchResults.map(result => result.item);
           }
-
-          // Step 2: Apply fuzzy search for status on the current results
           if (decision.parameters.status) {
             const statusSearchTerm = decision.parameters.status;
-            
-            // Create a temporary Fuse index to search the status field of the current results
-            const statusFuse = new Fuse(purchaseOrdersResults, {
-              keys: ['status'],
-              includeScore: true,
-              threshold: 0.4, // Adjust this threshold for more/less strict matching
-            });
-            
+            const statusFuse = new Fuse(purchaseOrdersResults, { keys: ['status'], includeScore: true, threshold: 0.4 });
             const statusSearchResults = statusFuse.search(statusSearchTerm);
             purchaseOrdersResults = statusSearchResults.map(result => result.item);
           }
-
           const poMappedData = purchaseOrdersResults.map(order => ({
             'ID': order.id,
             'Vendor': order.vendor,
@@ -226,21 +266,21 @@ app.post('/api/chat', async (req, res) => {
             'Status': order.status,
             'Value': order.value
           }));
-
           toolResult = {
             type: 'table',
             tableColumns: ['ID', 'Vendor', 'Material', 'Quantity', 'Status', 'Value'],
             tableData: poMappedData,
           };
           break;
-        // --- END OF MODIFIED LOGIC ---
+        }
 
         default:
-          toolResult = { type: 'text', content: "Sorry, I can't do that yet." };
+          toolResult = { type: 'text', content: "Sorry, I'm not sure how to handle that tool." };
       }
       res.json(toolResult);
 
     } else {
+      // This is for decision.type === 'text'
       console.log('AI decided to have a normal conversation.');
       res.json({ type: 'text', content: decision.content });
     }
@@ -250,6 +290,8 @@ app.post('/api/chat', async (req, res) => {
     res.status(500).json({ error: 'Failed to get a response from the AI.' });
   }
 });
+// --- END OF MODIFIED ENDPOINT ---
+
 
 app.post('/api/submit-leave', (req, res) => {
   const newLeaveData = req.body;
@@ -271,5 +313,5 @@ app.post('/api/submit-leave', (req, res) => {
 
 const PORT = 3001;
 app.listen(PORT, () => {
-  console.log(`✅ Fuzzy-Search-Enabled Backend is running on http://localhost:${PORT}`);
+  console.log(`✅ Intent-Based-Logic Backend is running on http://localhost:${PORT}`);
 });
