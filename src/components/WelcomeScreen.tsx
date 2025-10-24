@@ -20,7 +20,7 @@ const promptSuggestions = [
   },
   {
     icon: <Lightbulb className="h-5 w-5" />,
-    text: "What is the purchase order?",
+    text: "What are the purchase orders?",
   },
 ];
 
