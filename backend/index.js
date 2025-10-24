@@ -83,11 +83,19 @@ const getToolsPrompt = () => {
   ${tools.map(tool => `- ${tool.name}: ${tool.description} (Parameters: ${JSON.stringify(tool.parameters)})`).join('\n')}
 
   Follow these rules STRICTLY based on the user's latest input:
-  1. **Analyze Intent:** Determine the user's primary goal. Are they asking *what* something is or *how* to do something (Definition/Process)? Are they asking to *see data* (Inventory, SO, PO)? Are they asking for a *form* (Leave)? Or just chatting?
-  2. **Definition/Process Questions:** If the user asks 'what is X', 'define X', 'explain X', 'process for X', or 'how to do X' (where X is an SAP term, T-code, concept, or process), you MUST use the 'get_sap_definition' tool. Extract X as the 'term'.
-  3. **Data/Form Requests:** If the user asks to see stock, orders, or get the leave form, use the corresponding tool ('query_inventory', 'get_sales_orders', 'get_purchase_orders', 'show_leave_application_form'). **CRITICAL PRIORITY:** You MUST extract relevant parameters accurately if mentioned. **For queries mentioning MULTIPLE items** (e.g., "bearings and pumps", "pumps, valves and bearings"), extract ALL items mentioned and include them in the parameter exactly as stated, preserving delimiters like 'and' or commas. If parameters are needed but not clearly extractable, ask the user to clarify.
-  4. **Simple Chat:** If the input is *only* a simple acknowledgment ('ok', 'thanks'), compliment ('great job'), or greeting ('hello'), respond briefly and friendly using JSON format A.
-  5. **Fallback:** If the input doesn't match rules 2, 3, or 4 (e.g., unrelated question, vague SAP request), respond politely using JSON format A, explaining you can use tools for specific tasks or define SAP terms/processes. DO NOT try to answer general SAP questions outside the scope of the tools.
+  1. **Analyze Intent:** Determine the user's primary goal. Are they asking *what* something is (Definition)? Are they asking *how* to do something (Process)? Are they asking to *see/view/get data* (Inventory, SO, PO)? Are they asking for a *form* (Leave)? Or just chatting?
+  2. **Definition Questions:** If the user asks 'what is X' or 'define X' where X is a CONCEPT/TERM (e.g., "what is FB60", "define purchase order", "what is S/4HANA"), use the 'get_sap_definition' tool.
+  3. **Process Questions:** If the user asks 'how to X', 'process for X', 'steps to X', use the 'get_sap_definition' tool. Extract X as the 'term'.
+  4. **Data/Records Requests:** If the user asks to VIEW/SEE/GET existing data or records (e.g., "show me purchase orders", "get sales orders", "what are THE purchase orders", "view stock", "POs for ABC vendor"), use the corresponding data tool ('query_inventory', 'get_sales_orders', 'get_purchase_orders'). **CRITICAL:** Extract relevant parameters accurately. For multiple items mentioned, include all in the parameter.
+  5. **Form Requests:** If the user asks to apply for leave or wants a leave form, use 'show_leave_application_form'.
+  6. **Simple Chat:** If the input is a simple acknowledgment ('ok', 'thanks'), compliment, or greeting, respond briefly using JSON format A.
+  7. **Fallback:** If unclear, respond politely using JSON format A.
+  
+  **KEY DISTINCTION:** 
+  - "What is a purchase order?" → Definition (use get_sap_definition)
+  - "What are the purchase orders?" / "Show purchase orders" → Data request (use get_purchase_orders)
+  - "What is stock?" → Definition (use get_sap_definition)
+  - "What is the stock?" / "Show me stock" → Data request (use query_inventory)
 
   Your response MUST be a single, valid JSON object with ONE of the following formats ONLY:
   A. For text responses: { "type": "text", "content": "Your conversational response here." }
