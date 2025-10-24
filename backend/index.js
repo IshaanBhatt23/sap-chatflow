@@ -285,10 +285,12 @@ app.post('/api/chat', async (req, res) => {
     } else if (decision.type === 'text') {
       // Handle direct text response from AI
       console.log('AI decided to have a normal conversation.');
-      res.json({ type: 'text', content: decision.content });
+      // --- Ensure 'decision.content' exists before sending ---
+      const contentToSend = decision.content || "Sorry, I couldn't generate a response.";
+      res.json({ type: 'text', content: contentToSend });
     } else {
        // Handle unexpected decision format
-       console.error("Unexpected decision type received:", decision.type);
+       console.error("Unexpected decision type received:", decision.type, "Decision:", decision);
        res.status(500).json({ error: 'Received an unexpected response format from the AI.' });
     }
 
