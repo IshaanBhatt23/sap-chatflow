@@ -65,7 +65,7 @@ export const ChatInput = ({
           // --- MODIFIED: Smaller button on mobile ---
           className="bg-accent hover:bg-accent/90 h-10 w-10 md:h-14 md:w-14 flex-shrink-0 rounded-full"
         >
-          {/* --- MODIFIED: Smaller icon on mobile --- */}
+          {/* --- MODFIED: Smaller icon on mobile --- */}
           <Send className="h-5 w-5 md:h-7 md:w-7" />
         </Button>
       </div>
