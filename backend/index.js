@@ -57,11 +57,15 @@ const knowledgeFuse = new Fuse(knowledgeData, { keys: ['term', 'definition'], in
 
 // --- Tools array with refined descriptions ---
 const tools = [
-  { name: 'get_sap_definition', description: "Use this tool ONLY to define a specific SAP term, concept, T-code (like 'fb60', 'MIRO', 'fb 60'), or abbreviation asked by the user (e.g., 'What is fb60?', 'Define S/4HANA', 'process for sales order'). Extract the specific term/topic.", parameters: { "term": "The specific SAP term, topic, T-code, or abbreviation the user is asking about." } },
+  // --- MODIFIED Description for clarity on processes ---
+  { name: 'get_sap_definition', description: "Use this tool ONLY to define or explain a specific SAP term, concept, T-code (like 'fb60'), process, or abbreviation (e.g., 'What is fb60?', 'Define S/4HANA', 'process for sales order', 'how to enter vendor invoice'). Extract the core term/topic.", parameters: { "term": "The specific SAP term, topic, process, T-code, or abbreviation the user is asking about." } },
   { name: 'show_leave_application_form', description: 'Use this tool when the user explicitly asks to apply for leave, request time off, or wants a leave form.', parameters: {} },
-  { name: 'query_inventory', description: "Use this tool when the user asks about stock levels or asks if a specific material/item is in stock (e.g., 'check stock', 'do we have bearings?'). **You MUST extract the material name/ID if provided**.", parameters: { "material_id": "(Optional, but attempt extraction) The specific ID or name of the material the user mentioned, e.g., 'PUMP-1001' or 'bearings'", "comparison": "(Optional) The filter operator, such as 'less than' or 'greater than'", "quantity": "(Optional) The numeric value to compare the stock level against, e.g., 1000" } },
-  { name: 'get_sales_orders', description: 'Use this tool when the user asks to see or find sales orders. Can be filtered by customer name or status (e.g., "open", "in process"). Extract filters if provided.', parameters: { "customer": "(Optional) The name of the customer to filter by.", "status": "(Optional) The status of the orders to filter by (e.g., 'Open')." } },
-  { name: 'get_purchase_orders', description: 'Use this tool when the user asks to see or find purchase orders. Can be filtered by vendor name or status (e.g., "ordered", "delivered"). Extract filters if provided.', parameters: { "vendor": "(Optional) The name of the vendor to filter by.", "status": "(Optional) The status of the orders to filter by (e.g., 'Ordered')." } }
+  // --- MODIFIED Description for better extraction ---
+  { name: 'query_inventory', description: "Use this tool ONLY when the user asks about stock levels or specific materials/items (e.g., 'check stock', 'do we have bearings?', 'stock of pump-1001'). **Extract the material name(s)/ID(s)** mentioned as 'material_id'. If multiple items are mentioned, combine them (e.g., 'pumps and bearings'). Do NOT use for general questions.", parameters: { "material_id": "(REQUIRED if mentioned) The specific ID(s) or name(s) of the material(s) the user asked about (e.g., 'PUMP-1001', 'bearings', 'pumps and bearings')", "comparison": "(Optional) The filter operator ('less than' or 'greater than')", "quantity": "(Optional) The numeric value for comparison" } },
+  // --- MODIFIED Description ---
+  { name: 'get_sales_orders', description: 'Use this tool ONLY to find/view EXISTING sales orders. Filter by customer or status if provided. Do NOT use for "how to", "process", or definition questions.', parameters: { "customer": "(Optional) The customer name to filter by.", "status": "(Optional) The order status to filter by (e.g., 'Open')." } },
+  // --- MODIFIED Description ---
+  { name: 'get_purchase_orders', description: 'Use this tool ONLY to find/view EXISTING purchase orders. Filter by vendor or status if provided. Do NOT use for "how to", "process", or definition questions.', parameters: { "vendor": "(Optional) The vendor name to filter by.", "status": "(Optional) The order status to filter by (e.g., 'Ordered')." } }
 ];
 
 // --- getToolsPrompt with priority rules ---
@@ -72,10 +76,11 @@ const getToolsPrompt = () => {
   ${tools.map(tool => `- ${tool.name}: ${tool.description} (Parameters: ${JSON.stringify(tool.parameters)})`).join('\n')}
 
   Follow these rules STRICTLY based on the user's latest input:
-  1. **PRIORITY:** Analyze the user's input. Does it contain a specific question or command related to SAP that matches one of the tools (even if mixed with greetings like 'hey' or 'hello')?
-  2. If YES (Rule 1 applies): Choose the corresponding tool_name. **Extract any relevant parameters** mentioned (like term, material_id, customer, vendor, status). Ignore the greeting part. Respond in JSON format B.
-  3. If NO (Rule 1 does not apply), and the user input is *only* a simple acknowledgment (e.g., 'ok', 'thanks', 'great'), compliment ('you are amazing'), or greeting ('hello'): Respond with a brief, friendly text message in JSON format A (e.g., "You're welcome!", "Okay.", "Got it! How can I help with SAP?").
-  4. If NO (Rules 1 and 3 do not apply) (e.g., it's a general non-SAP question, a vague request, or something unrelated): Respond with a polite text message in JSON format A explaining you can only perform actions related to the available tools or define specific SAP terms using the 'get_sap_definition' tool.
+  1. **Analyze Intent:** Determine the user's primary goal. Are they asking *what* something is or *how* to do something (Definition/Process)? Are they asking to *see data* (Inventory, SO, PO)? Are they asking for a *form* (Leave)? Or just chatting?
+  2. **Definition/Process Questions:** If the user asks 'what is X', 'define X', 'explain X', 'process for X', or 'how to do X' (where X is an SAP term, T-code, concept, or process), you MUST use the 'get_sap_definition' tool. Extract X as the 'term'.
+  3. **Data/Form Requests:** If the user asks to see stock, orders, or get the leave form, use the corresponding tool ('query_inventory', 'get_sales_orders', 'get_purchase_orders', 'show_leave_application_form'). **PRIORITY:** You MUST attempt to extract relevant parameters (material_id, customer, vendor, status) if mentioned.
+  4. **Simple Chat:** If the input is *only* a simple acknowledgment ('ok', 'thanks'), compliment ('great job'), or greeting ('hello'), respond briefly and friendly using JSON format A.
+  5. **Fallback:** If the input doesn't match rules 2, 3, or 4 (e.g., unrelated question, vague SAP request), respond politely using JSON format A, explaining you can use tools for specific tasks or define SAP terms/processes. DO NOT try to answer general SAP questions outside the scope of the tools.
 
   Your response MUST be a single, valid JSON object with ONE of the following formats ONLY:
   A. For text responses: { "type": "text", "content": "Your conversational response here." }
@@ -98,7 +103,7 @@ async function callGroqLLM(systemPrompt, userPrompt, isJsonMode = false) {
   const payload = {
     model: 'llama-3.1-8b-instant',
     messages: messages,
-    temperature: 0.5, // Adjusted temperature slightly
+    temperature: 0.5, // Keep slightly lower temp for better instruction following
   };
 
   if (isJsonMode) {
@@ -152,7 +157,6 @@ app.post('/api/chat', async (req, res) => {
   if (!Array.isArray(messageHistory) || messageHistory.length === 0) {
     return res.status(400).json({ error: 'Invalid messageHistory provided.' });
   }
-  // --- STORE ORIGINAL USER QUERY ---
   const originalUserQuery = messageHistory[messageHistory.length - 1].text;
   console.log(`\n--- Received query: "${originalUserQuery}" ---`);
 
@@ -203,17 +207,16 @@ app.post('/api/chat', async (req, res) => {
           }
 
           // Normalize the search term for KB lookup
-          const normalizedSearchTerm = searchTerm.replace(/\s+/g, '').toUpperCase();
-          console.log(`--> Original search term: "${searchTerm}", Normalized: "${normalizedSearchTerm}"`);
+          // Keep original search term for LLM prompts, use normalized for KB search
+          const normalizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9]/g, '').toUpperCase(); // More aggressive normalization
+          console.log(`--> Original search term: "${searchTerm}", Normalized for KB: "${normalizedSearchTerm}"`);
 
-          // --- Check if user asked about a process ---
           const askedForProcess = /\b(process|how to|steps)\b/i.test(originalUserQuery);
           console.log(`--> User asked for process: ${askedForProcess}`);
 
-          // Search KB using the NORMALIZED term
           const kbSearchResults = knowledgeFuse.search(normalizedSearchTerm);
           const topScore = kbSearchResults[0]?.score;
-          const goodKbMatch = kbSearchResults.length > 0 && topScore < 0.45; // Using 0.45 threshold
+          const goodKbMatch = kbSearchResults.length > 0 && topScore < 0.45;
 
           let llmSystemPrompt = 'You are a helpful SAP assistant explaining concepts simply.';
           let llmUserPrompt = '';
@@ -221,36 +224,30 @@ app.post('/api/chat', async (req, res) => {
           if (goodKbMatch) {
             console.log('--> Found KB match:', kbSearchResults[0].item.term, `(Score: ${topScore})`);
             const definition = kbSearchResults[0].item.definition;
-            const matchedTerm = kbSearchResults[0].item.term; // Use the actual term from KB
+            const matchedTerm = kbSearchResults[0].item.term;
 
             if (askedForProcess) {
-              // KB Match + Asked for Process
-              llmUserPrompt = `The user asked about the process related to "${searchTerm}". We found this definition for "${matchedTerm}" in our knowledge base: "${definition}". Please explain this definition clearly, and then briefly outline the typical steps involved in the related SAP process, using the definition and your general knowledge. Include a simple analogy if helpful. Provide only the final explanation.`;
-              llmSystemPrompt = 'You are an SAP expert explaining processes clearly and concisely.'; // Slightly different persona
+              llmUserPrompt = `The user asked about the process related to "${searchTerm}". We found this definition for "${matchedTerm}" in our knowledge base: "${definition}". Explain this clearly, then briefly outline the typical steps in the related SAP process. Use a simple analogy. Provide only the final explanation.`;
+              llmSystemPrompt = 'You are an SAP expert explaining processes clearly and concisely.';
             } else {
-              // KB Match + Asked for Definition Only
-              llmUserPrompt = `A user asked about "${searchTerm}". Explain the following definition for "${matchedTerm}" in a friendly, human-like way. If possible, include a simple analogy: "${definition}". Just provide the final text explanation.`;
+              llmUserPrompt = `A user asked about "${searchTerm}". Explain the following definition for "${matchedTerm}" simply, like you're talking to a colleague. Include a simple analogy: "${definition}". Just provide the final explanation.`;
             }
           } else {
             console.log(`--> No good KB match found for "${normalizedSearchTerm}". Asking Groq fallback.`);
             if (askedForProcess) {
-               // No KB Match + Asked for Process
-               llmUserPrompt = `The user asked about the SAP process for "${searchTerm}". It wasn't found in our specific knowledge base. Based on your general SAP knowledge, please outline the typical steps involved in this process. Keep it concise and try to include a simple analogy if helpful. If unsure about the process, respond with: "I couldn't find specific details for the '${searchTerm}' process. Could you describe what you're trying to achieve?"`;
+               llmUserPrompt = `The user asked about the SAP process for "${searchTerm}". It wasn't found in our specific knowledge base. Based on your general SAP knowledge, outline the typical steps. Keep it concise, use an analogy. If unsure, respond: "I couldn't find specific details for the '${searchTerm}' process. Could you describe what you're trying to achieve?"`;
                llmSystemPrompt = 'You are an SAP expert explaining processes clearly and concisely.';
             } else {
-              // No KB Match + Asked for Definition Only
-              llmUserPrompt = `The user asked for a definition of the SAP term "${searchTerm}". It wasn't found in our specific knowledge base. Provide a concise, friendly, human-like definition ONLY if you are confident you know what it means in an SAP context. Try to include a simple analogy if it helps clarify. If unsure, respond with: "I couldn't find a specific definition for '${searchTerm}' in my knowledge base. Could you provide more context or check the spelling?"`;
+              llmUserPrompt = `The user asked for a definition of SAP term "${searchTerm}". It wasn't in our knowledge base. Provide a concise, friendly definition ONLY if you are confident about its SAP context. Use a simple analogy. If unsure, respond: "I couldn't find a specific definition for '${searchTerm}'. Could you provide more context or check the spelling?"`;
             }
           }
 
-          // Call Groq with the determined prompt
           const finalResult = await callGroqLLM(llmSystemPrompt, llmUserPrompt);
 
           if (finalResult && !finalResult.error) {
             toolResult = { type: 'text', content: finalResult };
           } else {
             console.error("Error getting final explanation from LLM:", finalResult?.message);
-            // Provide a generic error if LLM fails
             toolResult = { type: 'text', content: `Sorry, I encountered an issue while trying to explain '${searchTerm}'. Please try again.` };
           }
           break;
@@ -266,13 +263,17 @@ app.post('/api/chat', async (req, res) => {
         case 'query_inventory': {
            console.log("--> Querying inventory with params:", parameters);
           let inventory = stockList;
-          if (parameters.material_id) {
-            const searchTerm = parameters.material_id;
-             console.log(`--> Filtering inventory by material: "${searchTerm}"`);
-            const searchResults = stockFuse.search(searchTerm);
+          // --- IMPROVED: Handle potentially missing material_id ---
+          const materialSearchTerm = parameters.material_id;
+          if (materialSearchTerm) {
+             console.log(`--> Filtering inventory by material: "${materialSearchTerm}"`);
+            const searchResults = stockFuse.search(materialSearchTerm); // Use the combined term directly
             inventory = searchResults.map(result => result.item);
-             console.log(`--> Found ${inventory.length} potential matches.`);
+             console.log(`--> Found ${inventory.length} potential matches for "${materialSearchTerm}".`);
+          } else {
+             console.log("--> No specific material_id provided, showing all stock.");
           }
+
           if (parameters.comparison && parameters.quantity) {
             const qty = parseInt(parameters.quantity, 10);
             const comparison = parameters.comparison.toLowerCase();
