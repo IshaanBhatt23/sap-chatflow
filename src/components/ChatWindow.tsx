@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from "react"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { useEffect, useRef } from "react"
 import { MessageBubble, Message } from "./MessageBubble"
 import { WelcomeScreen } from "./WelcomeScreen"
 import { Badge } from "@/components/ui/badge"
@@ -13,6 +12,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils" // 👈 --- ADDED THIS IMPORT ---
 
 interface ChatWindowProps {
   messages: Message[]
@@ -86,6 +86,7 @@ export const ChatWindow = ({ messages, onPromptClick, onFormSubmit, isConnected,
           </Badge>
         </div>
 
+        {/* --- MODIFIED: This outer div now handles the theme button visibility --- */}
         <div className="flex items-center gap-3">
           {/* --- MODIFIED: This entire div is now hidden on mobile (screens < md) --- */}
           <div className="hidden md:flex items-center gap-3">
@@ -150,8 +151,20 @@ export const ChatWindow = ({ messages, onPromptClick, onFormSubmit, isConnected,
         </div>
       </div>
       
-      {/* This div is the main scrolling container */}
-      <div ref={scrollViewportRef} className="flex-1 overflow-y-auto p-6">
+      {/* --- 
+        THIS IS THE MAIN FIX 
+        This div is the main scrolling container.
+        We use cn() to conditionally apply padding:
+        - "p-6" (default padding) when messages.length > 0
+        - "p-0" (no padding) when messages.length === 0 (so WelcomeScreen fits)
+      --- */}
+      <div 
+        ref={scrollViewportRef} 
+        className={cn(
+          "flex-1 overflow-y-auto",
+          messages.length > 0 ? "p-6" : "p-0"
+        )}
+      >
         {messages.length === 0 && !isBotTyping ? (
           <WelcomeScreen onPromptClick={onPromptClick} />
         ) : (
