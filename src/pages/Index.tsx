@@ -7,9 +7,13 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useChatSessions } from "@/hooks/useChatSessions";
 
+// --- 🔽 Define the Render URL as a constant 🔽 ---
+const BACKEND_URL = "https://sap-assistant-backend.onrender.com";
+// --- 🔼 ---
+
 const Index = () => {
   const { toast } = useToast();
-  
+
   const {
     sessions,
     activeSession,
@@ -24,7 +28,7 @@ const Index = () => {
     addMessageToSession,
   } = useChatSessions();
 
-  const [isConnected] = useState(true);
+  const [isConnected] = useState(true); // You might want to add actual connection checks later
   const [isBotTyping, setIsBotTyping] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -44,7 +48,7 @@ const Index = () => {
       const newSession = handleNewChat(false);
       currentSessionId = newSession.id;
     }
-    
+
     const userMsg: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -53,23 +57,40 @@ const Index = () => {
     };
 
     addMessageToSession(currentSessionId, userMsg);
-    setIsBotTyping(true); 
+    setIsBotTyping(true);
 
     try {
-      const messageHistory = activeSession?.messages.map(msg => ({
-        sender: msg.role,
-        text: (msg.data as { type: 'text'; content: string }).content,
-      })) || [];
-      messageHistory.push({ sender: 'user', text: text });
-      
-      const response = await fetch('http://localhost:3001/api/chat', {
+      // Create message history for the backend, making sure 'text' exists
+      const messageHistory = activeSession?.messages
+        .map(msg => ({
+          sender: msg.role,
+          // Safely access content, assuming text type for now
+          text: (msg.data as { type?: string; content?: string })?.content ?? '',
+        }))
+        // Add the new user message to the history being sent
+        .concat([{ sender: 'user', text: text }])
+         || [{ sender: 'user', text: text }]; // Ensure history isn't empty
+
+
+      // --- 🔽 Use the Render URL 🔽 ---
+      const response = await fetch(`${BACKEND_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messageHistory }),
         signal: controller.signal,
       });
+      // --- 🔼 ---
 
-      if (!response.ok) throw new Error(`API error: ${response.statusText}`);
+      if (!response.ok) {
+         // Try to get error message from backend response
+         let errorMsg = `API error: ${response.statusText}`;
+         try {
+           const errorData = await response.json();
+           errorMsg = errorData.error || errorMsg; // Use backend error if available
+         } catch (e) { /* Ignore parsing error */ }
+         throw new Error(errorMsg);
+      }
+
 
       const botResponseData: MessageData = await response.json();
 
@@ -85,65 +106,79 @@ const Index = () => {
     } catch (error: any) {
       if (error.name === 'AbortError') {
         console.log('Fetch aborted by user action.');
-        return;
+         // Optionally set isBotTyping false here if you aborted
+         // setIsBotTyping(false);
+        return; // Don't show error toast if aborted
       }
 
       console.error("Failed to get bot response:", error);
       toast({
         title: "Error",
-        description: "Could not connect to the assistant. Please try again.",
+        description: error.message || "Could not connect to the assistant. Please try again.", // Show specific error
         variant: "destructive",
       });
     } finally {
-      setIsBotTyping(false); 
+      setIsBotTyping(false);
+       abortControllerRef.current = null; // Clear the controller ref
     }
   };
 
   const handleFormSubmit = async (formData: Record<string, any>) => {
-    setIsBotTyping(true); 
+    setIsBotTyping(true);
     try {
-      const response = await fetch('http://localhost:3001/api/submit-leave', {
+      // --- 🔽 Use the Render URL 🔽 ---
+      const response = await fetch(`${BACKEND_URL}/api/submit-leave`, {
+      // --- 🔼 ---
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
 
-      if (!response.ok) throw new Error('Form submission failed');
+       if (!response.ok) {
+         let errorMsg = 'Form submission failed';
+         try {
+           const errorData = await response.json();
+           errorMsg = errorData.error || errorMsg;
+         } catch (e) { /* Ignore */ }
+         throw new Error(errorMsg);
+       }
+
 
       const confirmationData = await response.json();
 
       const confirmationMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        data: confirmationData, 
+        data: confirmationData,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
-      
+
       if (activeSessionId) {
         addMessageToSession(activeSessionId, confirmationMsg);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to submit form:", error);
       toast({
         title: "Error",
-        description: "Could not submit the form. Please try again.",
+        description: error.message || "Could not submit the form. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setIsBotTyping(false); 
+      setIsBotTyping(false);
     }
   };
 
   useEffect(() => {
+    // Cleanup function to abort fetch on component unmount or session change
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
+        console.log("Aborting fetch on cleanup");
       }
     };
-  }, [activeSessionId]);
+  }, [activeSessionId]); // Re-run effect if session changes
 
-  const handleFileUpload = (file: File) =>
-    toast({ title: "File uploaded", description: `${file.name} processed.` });
+   // --- Removed handleFileUpload ---
 
   return (
     <div className="relative flex h-screen w-full overflow-hidden">
@@ -187,10 +222,10 @@ const Index = () => {
           isBotTyping={isBotTyping}
           onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
         />
+        {/* --- Removed onFileUpload prop --- */}
         <ChatInput
           onSendMessage={handleSendMessage}
-          onFileUpload={handleFileUpload}
-          disabled={isBotTyping} 
+          disabled={isBotTyping}
           activeSessionId={activeSessionId ?? undefined}
         />
       </div>
