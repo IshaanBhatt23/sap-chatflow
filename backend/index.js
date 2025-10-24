@@ -51,20 +51,16 @@ const purchaseOrderData = readJsonSafely(purchaseOrdersDbPath, []);
 const purchaseOrderFuse = new Fuse(purchaseOrderData, { keys: ['vendor'], includeScore: true, threshold: 0.4 });
 
 const knowledgeData = readJsonSafely(knowledgeDbPath, []);
-// Relaxed threshold slightly for better matching on normalized terms
 const knowledgeFuse = new Fuse(knowledgeData, { keys: ['term', 'definition'], includeScore: true, threshold: 0.45, ignoreLocation: true });
 
 
 // --- Tools array with refined descriptions ---
 const tools = [
-  // --- MODIFIED Description for clarity on processes ---
   { name: 'get_sap_definition', description: "Use this tool ONLY to define or explain a specific SAP term, concept, T-code (like 'fb60'), process, or abbreviation (e.g., 'What is fb60?', 'Define S/4HANA', 'process for sales order', 'how to enter vendor invoice'). Extract the core term/topic.", parameters: { "term": "The specific SAP term, topic, process, T-code, or abbreviation the user is asking about." } },
   { name: 'show_leave_application_form', description: 'Use this tool when the user explicitly asks to apply for leave, request time off, or wants a leave form.', parameters: {} },
-  // --- MODIFIED Description for better extraction ---
-  { name: 'query_inventory', description: "Use this tool ONLY when the user asks about stock levels or specific materials/items (e.g., 'check stock', 'do we have bearings?', 'stock of pump-1001'). **Extract the material name(s)/ID(s)** mentioned as 'material_id'. If multiple items are mentioned, combine them (e.g., 'pumps and bearings'). Do NOT use for general questions.", parameters: { "material_id": "(REQUIRED if mentioned) The specific ID(s) or name(s) of the material(s) the user asked about (e.g., 'PUMP-1001', 'bearings', 'pumps and bearings')", "comparison": "(Optional) The filter operator ('less than' or 'greater than')", "quantity": "(Optional) The numeric value for comparison" } },
-  // --- MODIFIED Description ---
+  // --- MODIFIED Description AGAIN for extraction emphasis ---
+  { name: 'query_inventory', description: "Use this tool ONLY when the user asks about stock levels OR asks if specific materials/items are in stock (e.g., 'check stock', 'do we have bearings?', 'stock of pump-1001', 'pumps and bearings'). **CRITICAL: You MUST extract the specific material name(s) or ID(s)** mentioned by the user and put them in the 'material_id' parameter. If multiple items are mentioned (like 'pumps and bearings'), combine them exactly as stated by the user into the 'material_id'. Do NOT use for general questions.", parameters: { "material_id": "(REQUIRED if mentioned) The exact name(s) or ID(s) of the material(s) the user asked about (e.g., 'PUMP-1001', 'bearings', 'pumps and bearings'). DO NOT omit this if the user mentions an item.", "comparison": "(Optional) The filter operator ('less than' or 'greater than')", "quantity": "(Optional) The numeric value for comparison" } },
   { name: 'get_sales_orders', description: 'Use this tool ONLY to find/view EXISTING sales orders. Filter by customer or status if provided. Do NOT use for "how to", "process", or definition questions.', parameters: { "customer": "(Optional) The customer name to filter by.", "status": "(Optional) The order status to filter by (e.g., 'Open')." } },
-  // --- MODIFIED Description ---
   { name: 'get_purchase_orders', description: 'Use this tool ONLY to find/view EXISTING purchase orders. Filter by vendor or status if provided. Do NOT use for "how to", "process", or definition questions.', parameters: { "vendor": "(Optional) The vendor name to filter by.", "status": "(Optional) The order status to filter by (e.g., 'Ordered')." } }
 ];
 
@@ -78,7 +74,7 @@ const getToolsPrompt = () => {
   Follow these rules STRICTLY based on the user's latest input:
   1. **Analyze Intent:** Determine the user's primary goal. Are they asking *what* something is or *how* to do something (Definition/Process)? Are they asking to *see data* (Inventory, SO, PO)? Are they asking for a *form* (Leave)? Or just chatting?
   2. **Definition/Process Questions:** If the user asks 'what is X', 'define X', 'explain X', 'process for X', or 'how to do X' (where X is an SAP term, T-code, concept, or process), you MUST use the 'get_sap_definition' tool. Extract X as the 'term'.
-  3. **Data/Form Requests:** If the user asks to see stock, orders, or get the leave form, use the corresponding tool ('query_inventory', 'get_sales_orders', 'get_purchase_orders', 'show_leave_application_form'). **PRIORITY:** You MUST attempt to extract relevant parameters (material_id, customer, vendor, status) if mentioned.
+  3. **Data/Form Requests:** If the user asks to see stock, orders, or get the leave form, use the corresponding tool ('query_inventory', 'get_sales_orders', 'get_purchase_orders', 'show_leave_application_form'). **CRITICAL PRIORITY:** You MUST extract relevant parameters accurately if mentioned (especially 'material_id' for query_inventory - extract exactly what the user asks for, e.g., 'pumps and bearings'). If parameters are needed but not clearly extractable, ask the user to clarify.
   4. **Simple Chat:** If the input is *only* a simple acknowledgment ('ok', 'thanks'), compliment ('great job'), or greeting ('hello'), respond briefly and friendly using JSON format A.
   5. **Fallback:** If the input doesn't match rules 2, 3, or 4 (e.g., unrelated question, vague SAP request), respond politely using JSON format A, explaining you can use tools for specific tasks or define SAP terms/processes. DO NOT try to answer general SAP questions outside the scope of the tools.
 
@@ -162,7 +158,7 @@ app.post('/api/chat', async (req, res) => {
 
   try {
     // --- STEP 1: Call Groq for the decision ---
-    const decisionMakingPrompt = `User's input: "${originalUserQuery}"\n\nBased on this input and the rules provided in the system prompt, what is the correct JSON response?`;
+    const decisionMakingPrompt = `User's input: "${originalUserQuery}"\n\nBased on this input and the rules provided in the system prompt, what is the correct JSON response? Pay CLOSE attention to parameter extraction rules for tools.`; // Added emphasis
     const decisionResult = await callGroqLLM(getToolsPrompt(), decisionMakingPrompt, true); // JSON mode
 
     if (decisionResult && decisionResult.error) {
@@ -206,9 +202,7 @@ app.post('/api/chat', async (req, res) => {
              break;
           }
 
-          // Normalize the search term for KB lookup
-          // Keep original search term for LLM prompts, use normalized for KB search
-          const normalizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9]/g, '').toUpperCase(); // More aggressive normalization
+          const normalizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
           console.log(`--> Original search term: "${searchTerm}", Normalized for KB: "${normalizedSearchTerm}"`);
 
           const askedForProcess = /\b(process|how to|steps)\b/i.test(originalUserQuery);
@@ -264,14 +258,18 @@ app.post('/api/chat', async (req, res) => {
            console.log("--> Querying inventory with params:", parameters);
           let inventory = stockList;
           // --- IMPROVED: Handle potentially missing material_id ---
-          const materialSearchTerm = parameters.material_id;
+          const materialSearchTerm = parameters.material_id; // Parameter MUST be extracted by LLM now
           if (materialSearchTerm) {
              console.log(`--> Filtering inventory by material: "${materialSearchTerm}"`);
-            const searchResults = stockFuse.search(materialSearchTerm); // Use the combined term directly
+             // Use Fuse.js to search based on the extracted term (could be "pumps", "bearings", or "pumps and bearings")
+            const searchResults = stockFuse.search(materialSearchTerm);
             inventory = searchResults.map(result => result.item);
              console.log(`--> Found ${inventory.length} potential matches for "${materialSearchTerm}".`);
           } else {
-             console.log("--> No specific material_id provided, showing all stock.");
+             // This case should ideally not happen if Rule 3 is followed by the LLM
+             console.warn("--> Tool 'query_inventory' called without 'material_id' even though user mentioned item(s). Showing all stock as fallback.");
+             // Decide: Show all stock or ask for clarification? Showing all for now.
+             // inventory = stockList; // Already initialized
           }
 
           if (parameters.comparison && parameters.quantity) {
