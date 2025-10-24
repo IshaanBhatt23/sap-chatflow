@@ -51,18 +51,20 @@ const purchaseOrderData = readJsonSafely(purchaseOrdersDbPath, []);
 const purchaseOrderFuse = new Fuse(purchaseOrderData, { keys: ['vendor'], includeScore: true, threshold: 0.4 });
 
 const knowledgeData = readJsonSafely(knowledgeDbPath, []);
+// Relaxed threshold slightly for better matching on normalized terms
 const knowledgeFuse = new Fuse(knowledgeData, { keys: ['term', 'definition'], includeScore: true, threshold: 0.45, ignoreLocation: true });
+
 
 // --- Tools array with refined descriptions ---
 const tools = [
-  { name: 'get_sap_definition', description: "Use this tool ONLY to define a specific SAP term, concept, T-code (like 'fb60', 'MIRO', 'fb 60'), or abbreviation asked by the user (e.g., 'What is fb60?', 'Define S/4HANA'). Extract the specific term, ignoring minor typos or spaces.", parameters: { "term": "The specific SAP term, concept, T-code, or abbreviation the user is asking the definition for." } },
+  { name: 'get_sap_definition', description: "Use this tool ONLY to define a specific SAP term, concept, T-code (like 'fb60', 'MIRO', 'fb 60'), or abbreviation asked by the user (e.g., 'What is fb60?', 'Define S/4HANA', 'process for sales order'). Extract the specific term/topic.", parameters: { "term": "The specific SAP term, topic, T-code, or abbreviation the user is asking about." } },
   { name: 'show_leave_application_form', description: 'Use this tool when the user explicitly asks to apply for leave, request time off, or wants a leave form.', parameters: {} },
   { name: 'query_inventory', description: "Use this tool when the user asks about stock levels or asks if a specific material/item is in stock (e.g., 'check stock', 'do we have bearings?'). **You MUST extract the material name/ID if provided**.", parameters: { "material_id": "(Optional, but attempt extraction) The specific ID or name of the material the user mentioned, e.g., 'PUMP-1001' or 'bearings'", "comparison": "(Optional) The filter operator, such as 'less than' or 'greater than'", "quantity": "(Optional) The numeric value to compare the stock level against, e.g., 1000" } },
   { name: 'get_sales_orders', description: 'Use this tool when the user asks to see or find sales orders. Can be filtered by customer name or status (e.g., "open", "in process"). Extract filters if provided.', parameters: { "customer": "(Optional) The name of the customer to filter by.", "status": "(Optional) The status of the orders to filter by (e.g., 'Open')." } },
   { name: 'get_purchase_orders', description: 'Use this tool when the user asks to see or find purchase orders. Can be filtered by vendor name or status (e.g., "ordered", "delivered"). Extract filters if provided.', parameters: { "vendor": "(Optional) The name of the vendor to filter by.", "status": "(Optional) The status of the orders to filter by (e.g., 'Ordered')." } }
 ];
 
-// --- MODIFIED: getToolsPrompt with clearer priority ---
+// --- getToolsPrompt with priority rules ---
 const getToolsPrompt = () => {
   return `You are a helpful and friendly SAP Assistant. Your primary goal is to assist users with specific SAP-related tasks using the tools provided, explaining concepts clearly.
 
@@ -79,7 +81,7 @@ const getToolsPrompt = () => {
   A. For text responses: { "type": "text", "content": "Your conversational response here." }
   B. To use a tool: { "type": "tool_call", "tool_name": "name_of_the_tool", "parameters": { /* extracted parameters */ } }`;
 };
-// --- END MODIFIED PROMPT ---
+
 
 // --- HELPER FUNCTION TO CALL GROQ ---
 async function callGroqLLM(systemPrompt, userPrompt, isJsonMode = false) {
@@ -96,7 +98,7 @@ async function callGroqLLM(systemPrompt, userPrompt, isJsonMode = false) {
   const payload = {
     model: 'llama-3.1-8b-instant',
     messages: messages,
-    temperature: 0.4,
+    temperature: 0.5, // Adjusted temperature slightly
   };
 
   if (isJsonMode) {
@@ -119,7 +121,7 @@ async function callGroqLLM(systemPrompt, userPrompt, isJsonMode = false) {
       console.error("Unexpected response structure from Groq:", response.data);
        return { error: true, message: "Invalid response structure from AI.", status: 500 };
     }
-     console.log("Raw Groq response content:", content);
+     // console.log("Raw Groq response content:", content); // Keep commented unless debugging
     return content;
 
   } catch (error) {
@@ -150,12 +152,13 @@ app.post('/api/chat', async (req, res) => {
   if (!Array.isArray(messageHistory) || messageHistory.length === 0) {
     return res.status(400).json({ error: 'Invalid messageHistory provided.' });
   }
-  const userQuery = messageHistory[messageHistory.length - 1].text;
-  console.log(`\n--- Received query: "${userQuery}" ---`);
+  // --- STORE ORIGINAL USER QUERY ---
+  const originalUserQuery = messageHistory[messageHistory.length - 1].text;
+  console.log(`\n--- Received query: "${originalUserQuery}" ---`);
 
   try {
     // --- STEP 1: Call Groq for the decision ---
-    const decisionMakingPrompt = `User's input: "${userQuery}"\n\nBased on this input and the rules provided in the system prompt, what is the correct JSON response?`;
+    const decisionMakingPrompt = `User's input: "${originalUserQuery}"\n\nBased on this input and the rules provided in the system prompt, what is the correct JSON response?`;
     const decisionResult = await callGroqLLM(getToolsPrompt(), decisionMakingPrompt, true); // JSON mode
 
     if (decisionResult && decisionResult.error) {
@@ -190,51 +193,71 @@ app.post('/api/chat', async (req, res) => {
       const parameters = decision.parameters || {};
 
       switch (decision.tool_name) {
+        // --- MODIFIED CASE 'get_sap_definition' ---
         case 'get_sap_definition': {
-          let searchTerm = parameters.term; // Get the term extracted by the LLM
+          let searchTerm = parameters.term;
           if (!searchTerm) {
              console.warn("Tool 'get_sap_definition' called without 'term'.");
-             toolResult = { type: 'text', content: "Please tell me which SAP term you want defined." };
+             toolResult = { type: 'text', content: "Please tell me which SAP term or process you want explained." };
              break;
           }
 
-          // --- Normalize the search term ---
+          // Normalize the search term for KB lookup
           const normalizedSearchTerm = searchTerm.replace(/\s+/g, '').toUpperCase();
           console.log(`--> Original search term: "${searchTerm}", Normalized: "${normalizedSearchTerm}"`);
 
+          // --- Check if user asked about a process ---
+          const askedForProcess = /\b(process|how to|steps)\b/i.test(originalUserQuery);
+          console.log(`--> User asked for process: ${askedForProcess}`);
 
-          // --- Search using the NORMALIZED term ---
+          // Search KB using the NORMALIZED term
           const kbSearchResults = knowledgeFuse.search(normalizedSearchTerm);
           const topScore = kbSearchResults[0]?.score;
-          console.log(`--> KB Search Results for "${normalizedSearchTerm}" (Top Score: ${topScore}):`, kbSearchResults.slice(0, 3));
-          const goodKbMatch = kbSearchResults.length > 0 && topScore < 0.45;
+          const goodKbMatch = kbSearchResults.length > 0 && topScore < 0.45; // Using 0.45 threshold
+
+          let llmSystemPrompt = 'You are a helpful SAP assistant explaining concepts simply.';
+          let llmUserPrompt = '';
 
           if (goodKbMatch) {
             console.log('--> Found KB match:', kbSearchResults[0].item.term, `(Score: ${topScore})`);
             const definition = kbSearchResults[0].item.definition;
-            const rephrasePrompt = `A user asked about "${searchTerm}". Explain the following definition in a friendly, human-like way. If possible, include a simple analogy to make it easier to understand: "${definition}". Just provide the final text explanation.`;
-            const rephrasedContentResult = await callGroqLLM('You are a helpful SAP assistant explaining concepts simply.', rephrasePrompt);
-            if (rephrasedContentResult && !rephrasedContentResult.error) {
-                 toolResult = { type: 'text', content: rephrasedContentResult };
+            const matchedTerm = kbSearchResults[0].item.term; // Use the actual term from KB
+
+            if (askedForProcess) {
+              // KB Match + Asked for Process
+              llmUserPrompt = `The user asked about the process related to "${searchTerm}". We found this definition for "${matchedTerm}" in our knowledge base: "${definition}". Please explain this definition clearly, and then briefly outline the typical steps involved in the related SAP process, using the definition and your general knowledge. Include a simple analogy if helpful. Provide only the final explanation.`;
+              llmSystemPrompt = 'You are an SAP expert explaining processes clearly and concisely.'; // Slightly different persona
             } else {
-                 console.error("Error rephrasing definition:", rephrasedContentResult?.message);
-                 toolResult = { type: 'text', content: definition }; // Fallback to raw definition
+              // KB Match + Asked for Definition Only
+              llmUserPrompt = `A user asked about "${searchTerm}". Explain the following definition for "${matchedTerm}" in a friendly, human-like way. If possible, include a simple analogy: "${definition}". Just provide the final text explanation.`;
             }
           } else {
             console.log(`--> No good KB match found for "${normalizedSearchTerm}". Asking Groq fallback.`);
-            const fallbackPrompt = `The user asked for a definition of the SAP term "${searchTerm}". It wasn't found in our specific knowledge base. Provide a concise, friendly, human-like definition ONLY if you are confident you know what it means in an SAP context. Try to include a simple analogy if it helps clarify. If unsure, respond with: "I couldn't find a specific definition for '${searchTerm}' in my knowledge base. Could you provide more context or check the spelling?"`;
-            const fallbackContentResult = await callGroqLLM('You are a helpful SAP assistant explaining concepts simply.', fallbackPrompt);
-             if (fallbackContentResult && !fallbackContentResult.error) {
-                toolResult = { type: 'text', content: fallbackContentResult };
-             } else {
-                 console.error("Error getting fallback definition:", fallbackContentResult?.message);
-                 toolResult = { type: 'text', content: `Sorry, I couldn't retrieve information about '${searchTerm}' right now.` };
-             }
+            if (askedForProcess) {
+               // No KB Match + Asked for Process
+               llmUserPrompt = `The user asked about the SAP process for "${searchTerm}". It wasn't found in our specific knowledge base. Based on your general SAP knowledge, please outline the typical steps involved in this process. Keep it concise and try to include a simple analogy if helpful. If unsure about the process, respond with: "I couldn't find specific details for the '${searchTerm}' process. Could you describe what you're trying to achieve?"`;
+               llmSystemPrompt = 'You are an SAP expert explaining processes clearly and concisely.';
+            } else {
+              // No KB Match + Asked for Definition Only
+              llmUserPrompt = `The user asked for a definition of the SAP term "${searchTerm}". It wasn't found in our specific knowledge base. Provide a concise, friendly, human-like definition ONLY if you are confident you know what it means in an SAP context. Try to include a simple analogy if it helps clarify. If unsure, respond with: "I couldn't find a specific definition for '${searchTerm}' in my knowledge base. Could you provide more context or check the spelling?"`;
+            }
+          }
+
+          // Call Groq with the determined prompt
+          const finalResult = await callGroqLLM(llmSystemPrompt, llmUserPrompt);
+
+          if (finalResult && !finalResult.error) {
+            toolResult = { type: 'text', content: finalResult };
+          } else {
+            console.error("Error getting final explanation from LLM:", finalResult?.message);
+            // Provide a generic error if LLM fails
+            toolResult = { type: 'text', content: `Sorry, I encountered an issue while trying to explain '${searchTerm}'. Please try again.` };
           }
           break;
         }
+        // --- END MODIFIED CASE ---
 
-        // --- Other tool cases remain mostly unchanged ---
+        // --- Other tool cases ---
         case 'show_leave_application_form':
           console.log("--> Triggering leave form display.");
           toolResult = { type: 'leave_application_form' };
@@ -333,9 +356,8 @@ app.post('/api/chat', async (req, res) => {
 
         default:
           console.warn(`--> Unhandled tool detected: ${decision.tool_name}`);
-           const fallbackTextPrompt = `The user said: "${userQuery}". I decided to use a tool called '${decision.tool_name}' which isn't recognized. Ask the user to clarify or rephrase.`;
+           const fallbackTextPrompt = `The user said: "${originalUserQuery}". I decided to use a tool called '${decision.tool_name}' which isn't recognized. Ask the user to clarify or rephrase.`;
            const fallbackResult = await callGroqLLM('You are a helpful SAP assistant.', fallbackTextPrompt);
-           // Safely access content, provide default if null/undefined
            const fallbackContent = fallbackResult && !fallbackResult.error ? fallbackResult : "Sorry, I couldn't process that request. Could you please rephrase?";
            toolResult = { type: 'text', content: fallbackContent };
       }
@@ -360,7 +382,7 @@ app.post('/api/chat', async (req, res) => {
 // --- submit-leave endpoint ---
 app.post('/api/submit-leave', (req, res) => {
   const newLeaveData = req.body;
-   console.log("--- Received leave submission ---", newLeaveData); // Log submission
+   console.log("--- Received leave submission ---", newLeaveData);
    if (!newLeaveData || typeof newLeaveData !== 'object' || Object.keys(newLeaveData).length === 0) {
      console.error("--> Invalid leave data received.");
     return res.status(400).json({ error: 'Invalid leave data provided.' });
