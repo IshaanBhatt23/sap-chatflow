@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react"
-import { MessageBubble, Message } from "./MessageBubble"
-import { WelcomeScreen } from "./WelcomeScreen"
+import { MessageBubble, Message } from "@/components/MessageBubble" 
+import { WelcomeScreen } from "@/components/WelcomeScreen" 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Sun, Moon, Github, Linkedin, Globe, Menu } from "lucide-react"
@@ -12,7 +12,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { cn } from "@/lib/utils" // 👈 --- ADDED THIS IMPORT ---
+import { cn } from "@/lib/utils"
 
 interface ChatWindowProps {
   messages: Message[]
@@ -64,8 +64,8 @@ export const ChatWindow = ({ messages, onPromptClick, onFormSubmit, isConnected,
   return (
     // This root div is now correctly structured for flexbox layout
     <div className="flex flex-col flex-1 min-h-0 bg-background">
-      {/* Header (does not grow or shrink) */}
-      <div className="flex-shrink-0 border-b border-border px-4 md:px-6 py-4 flex items-center justify-between">
+      {/* --- MODIFIED: Reduced vertical padding on mobile (py-3) --- */}
+      <div className="flex-shrink-0 border-b border-border px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
         <div className="flex items-center gap-2 md:gap-3">
           <Button
             variant="ghost"
