@@ -211,40 +211,113 @@ app.post('/api/chat', async (req, res) => {
              break;
           }
 
-          const normalizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-          console.log(`--> Original search term: "${searchTerm}", Normalized for KB: "${normalizedSearchTerm}"`);
+          console.log(`--> Searching KB for: "${searchTerm}"`);
+          const askedForProcess = /\b(process|how to|steps|procedure|way to)\b/i.test(originalUserQuery);
+          console.log(`--> User asked for process/how-to: ${askedForProcess}`);
 
-          const askedForProcess = /\b(process|how to|steps)\b/i.test(originalUserQuery);
-          console.log(`--> User asked for process: ${askedForProcess}`);
-
-          const kbSearchResults = knowledgeFuse.search(normalizedSearchTerm);
-          const topScore = kbSearchResults[0]?.score;
-          const goodKbMatch = kbSearchResults.length > 0 && topScore < 0.45;
-
-          let llmSystemPrompt = 'You are a helpful SAP assistant explaining concepts simply.';
+          // Perform fuzzy search on the knowledge base
+          const kbSearchResults = knowledgeFuse.search(searchTerm);
+          console.log(`--> Found ${kbSearchResults.length} KB results`);
+          
+          // Get top 3 relevant results for context
+          const topResults = kbSearchResults.slice(0, 3).filter(result => result.score < 0.6);
+          
+          let llmSystemPrompt = '';
           let llmUserPrompt = '';
 
-          if (goodKbMatch) {
-            console.log('--> Found KB match:', kbSearchResults[0].item.term, `(Score: ${topScore})`);
-            const definition = kbSearchResults[0].item.definition;
-            const matchedTerm = kbSearchResults[0].item.term;
+          if (topResults.length > 0) {
+            console.log(`--> Using ${topResults.length} KB matches for context:`);
+            topResults.forEach((result, idx) => {
+              console.log(`   ${idx + 1}. ${result.item.term} (Score: ${result.score})`);
+            });
+
+            // Build context from KB results
+            const kbContext = topResults.map(result => 
+              `Term: "${result.item.term}"\nDefinition: ${result.item.definition}`
+            ).join('\n\n');
 
             if (askedForProcess) {
-              llmUserPrompt = `The user asked about the process related to "${searchTerm}". We found this definition for "${matchedTerm}" in our knowledge base: "${definition}". Explain this clearly, then briefly outline the typical steps in the related SAP process. Use a simple analogy. Provide only the final explanation.`;
-              llmSystemPrompt = 'You are an SAP expert explaining processes clearly and concisely.';
+              // User wants a process explanation
+              llmSystemPrompt = `You are a friendly SAP expert who explains processes in a conversational, easy-to-understand way. You break down complex SAP procedures into simple steps, use analogies from everyday life, and make learning SAP feel approachable.`;
+              
+              llmUserPrompt = `A user asked: "${originalUserQuery}"
+
+I found these relevant SAP terms in our knowledge base:
+${kbContext}
+
+Your task:
+1. Read through the KB information and understand the related concepts
+2. Explain the step-by-step process for "${searchTerm}" in a clear, conversational way
+3. Use a simple analogy to help them understand (like comparing SAP processes to everyday activities)
+4. Be specific about the steps but keep it friendly and not too technical
+5. If the KB doesn't have complete process details, use your SAP knowledge to fill in the gaps logically
+
+Format your response like you're explaining to a colleague over coffee, not reading from a manual. Make it helpful and memorable!`;
+
             } else {
-              llmUserPrompt = `A user asked about "${searchTerm}". Explain the following definition for "${matchedTerm}" simply, like you're talking to a colleague. Include a simple analogy: "${definition}". Just provide the final explanation.`;
+              // User wants a definition/explanation
+              llmSystemPrompt = `You are a friendly SAP expert who explains concepts in a way anyone can understand. You use analogies, examples, and conversational language to make SAP terminology accessible.`;
+              
+              llmUserPrompt = `A user asked: "${originalUserQuery}"
+
+I found these relevant SAP terms in our knowledge base:
+${kbContext}
+
+Your task:
+1. Explain what "${searchTerm}" means based on the KB information
+2. Use a simple, relatable analogy to help them understand the concept
+3. Keep it conversational and friendly - like you're explaining to a friend
+4. If there are multiple related terms, weave them together to give a complete picture
+5. Make sure your explanation is accurate but not overly technical
+
+Explain this in a way that makes the person say "Ah, now I get it!" Include the analogy naturally in your explanation.`;
             }
+
           } else {
-            console.log(`--> No good KB match found for "${normalizedSearchTerm}". Asking Groq fallback.`);
+            // No good KB matches - use LLM's general knowledge with caution
+            console.log(`--> No good KB matches found for "${searchTerm}"`);
+            
             if (askedForProcess) {
-               llmUserPrompt = `The user asked about the SAP process for "${searchTerm}". It wasn't found in our specific knowledge base. Based on your general SAP knowledge, outline the typical steps. Keep it concise, use an analogy. If unsure, respond: "I couldn't find specific details for the '${searchTerm}' process. Could you describe what you're trying to achieve?"`;
-               llmSystemPrompt = 'You are an SAP expert explaining processes clearly and concisely.';
+              llmSystemPrompt = `You are an SAP expert who helps users understand processes. Be helpful but honest about limitations.`;
+              
+              llmUserPrompt = `A user asked: "${originalUserQuery}"
+
+I couldn't find specific information about "${searchTerm}" in our knowledge base. 
+
+If you're confident about this SAP process from your training data:
+- Explain the typical steps clearly and conversationally
+- Use a simple analogy to make it relatable
+- Keep it practical and actionable
+
+If you're not sure about this specific process:
+- Politely let them know you couldn't find specific details
+- Ask them to provide more context or rephrase
+- Suggest they verify the term spelling or check official SAP documentation
+
+Be honest and helpful!`;
+
             } else {
-              llmUserPrompt = `The user asked for a definition of SAP term "${searchTerm}". It wasn't in our knowledge base. Provide a concise, friendly definition ONLY if you are confident about its SAP context. Use a simple analogy. If unsure, respond: "I couldn't find a specific definition for '${searchTerm}'. Could you provide more context or check the spelling?"`;
+              llmSystemPrompt = `You are an SAP expert who provides accurate information. Be helpful but honest about limitations.`;
+              
+              llmUserPrompt = `A user asked: "${originalUserQuery}"
+
+I couldn't find information about "${searchTerm}" in our knowledge base.
+
+If you're confident this is a real SAP term from your training:
+- Provide a clear, friendly definition
+- Use a simple analogy to explain it
+- Keep it conversational
+
+If you're not sure about this term:
+- Politely say you couldn't find it in the knowledge base
+- Ask for more context or suggest checking the spelling
+- Don't make up information
+
+Be honest and helpful!`;
             }
           }
 
+          // Get the final explanation from LLM
           const finalResult = await callGroqLLM(llmSystemPrompt, llmUserPrompt);
 
           if (finalResult && !finalResult.error) {
