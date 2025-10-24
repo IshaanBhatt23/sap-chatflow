@@ -55,7 +55,6 @@ const knowledgeFuse = new Fuse(knowledgeData, { keys: ['term', 'definition'], in
 
 // --- Tools array with refined descriptions ---
 const tools = [
-  // --- MODIFIED Description ---
   { name: 'get_sap_definition', description: "Use this tool ONLY to define a specific SAP term, concept, T-code (like 'fb60', 'MIRO', 'fb 60'), or abbreviation asked by the user (e.g., 'What is fb60?', 'Define S/4HANA'). Extract the specific term, ignoring minor typos or spaces.", parameters: { "term": "The specific SAP term, concept, T-code, or abbreviation the user is asking the definition for." } },
   { name: 'show_leave_application_form', description: 'Use this tool when the user explicitly asks to apply for leave, request time off, or wants a leave form.', parameters: {} },
   { name: 'query_inventory', description: "Use this tool when the user asks about stock levels or asks if a specific material/item is in stock (e.g., 'check stock', 'do we have bearings?'). **You MUST extract the material name/ID if provided**.", parameters: { "material_id": "(Optional, but attempt extraction) The specific ID or name of the material the user mentioned, e.g., 'PUMP-1001' or 'bearings'", "comparison": "(Optional) The filter operator, such as 'less than' or 'greater than'", "quantity": "(Optional) The numeric value to compare the stock level against, e.g., 1000" } },
@@ -63,18 +62,18 @@ const tools = [
   { name: 'get_purchase_orders', description: 'Use this tool when the user asks to see or find purchase orders. Can be filtered by vendor name or status (e.g., "ordered", "delivered"). Extract filters if provided.', parameters: { "vendor": "(Optional) The name of the vendor to filter by.", "status": "(Optional) The status of the orders to filter by (e.g., 'Ordered')." } }
 ];
 
-// --- getToolsPrompt with clearer rules ---
+// --- MODIFIED: getToolsPrompt with clearer priority ---
 const getToolsPrompt = () => {
-  return `You are a helpful and friendly SAP Assistant. Your primary goal is to assist users with specific SAP-related tasks using the tools provided, explaining concepts clearly, potentially using analogies.
+  return `You are a helpful and friendly SAP Assistant. Your primary goal is to assist users with specific SAP-related tasks using the tools provided, explaining concepts clearly.
 
   Available Tools:
   ${tools.map(tool => `- ${tool.name}: ${tool.description} (Parameters: ${JSON.stringify(tool.parameters)})`).join('\n')}
 
   Follow these rules STRICTLY based on the user's latest input:
-  1. Analyze the user's input. Does it clearly ask for an action described by one of the tools?
-  2. If YES: Choose the corresponding tool_name. **Extract any relevant parameters** mentioned (like term, material_id, customer, vendor, status). Respond in JSON format B.
-  3. If NO, and the user input is a simple acknowledgment (e.g., 'ok', 'thanks', 'great'), compliment ('you are amazing'), or greeting ('hello'): Respond with a brief, friendly text message in JSON format A (e.g., "You're welcome!", "Okay.", "Got it!").
-  4. If NO, and it's NOT a simple acknowledgment/compliment/greeting (e.g., it's a general question about SAP, a vague request, or something unrelated): Respond with a polite text message in JSON format A explaining you can only perform actions related to the available tools or define specific terms using the 'get_sap_definition' tool.
+  1. **PRIORITY:** Analyze the user's input. Does it contain a specific question or command related to SAP that matches one of the tools (even if mixed with greetings like 'hey' or 'hello')?
+  2. If YES (Rule 1 applies): Choose the corresponding tool_name. **Extract any relevant parameters** mentioned (like term, material_id, customer, vendor, status). Ignore the greeting part. Respond in JSON format B.
+  3. If NO (Rule 1 does not apply), and the user input is *only* a simple acknowledgment (e.g., 'ok', 'thanks', 'great'), compliment ('you are amazing'), or greeting ('hello'): Respond with a brief, friendly text message in JSON format A (e.g., "You're welcome!", "Okay.", "Got it! How can I help with SAP?").
+  4. If NO (Rules 1 and 3 do not apply) (e.g., it's a general non-SAP question, a vague request, or something unrelated): Respond with a polite text message in JSON format A explaining you can only perform actions related to the available tools or define specific SAP terms using the 'get_sap_definition' tool.
 
   Your response MUST be a single, valid JSON object with ONE of the following formats ONLY:
   A. For text responses: { "type": "text", "content": "Your conversational response here." }
@@ -199,10 +198,10 @@ app.post('/api/chat', async (req, res) => {
              break;
           }
 
-          // --- 🔽 NEW: Normalize the search term 🔽 ---
+          // --- Normalize the search term ---
           const normalizedSearchTerm = searchTerm.replace(/\s+/g, '').toUpperCase();
           console.log(`--> Original search term: "${searchTerm}", Normalized: "${normalizedSearchTerm}"`);
-          // --- 🔼 END NEW 🔼 ---
+
 
           // --- Search using the NORMALIZED term ---
           const kbSearchResults = knowledgeFuse.search(normalizedSearchTerm);
@@ -336,7 +335,9 @@ app.post('/api/chat', async (req, res) => {
           console.warn(`--> Unhandled tool detected: ${decision.tool_name}`);
            const fallbackTextPrompt = `The user said: "${userQuery}". I decided to use a tool called '${decision.tool_name}' which isn't recognized. Ask the user to clarify or rephrase.`;
            const fallbackResult = await callGroqLLM('You are a helpful SAP assistant.', fallbackTextPrompt);
-           toolResult = { type: 'text', content: fallbackResult?.content || "Sorry, I couldn't process that request. Could you please rephrase?" };
+           // Safely access content, provide default if null/undefined
+           const fallbackContent = fallbackResult && !fallbackResult.error ? fallbackResult : "Sorry, I couldn't process that request. Could you please rephrase?";
+           toolResult = { type: 'text', content: fallbackContent };
       }
       res.json(toolResult);
 
