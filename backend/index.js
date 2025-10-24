@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import axios from 'axios'; // We will use this for Groq
+import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -45,23 +45,34 @@ const stockList = Object.entries(stockData).map(([id, data]) => ({ Material: id,
 const stockFuse = new Fuse(stockList, { keys: ['Material', 'Description'], includeScore: true, threshold: 0.4, ignoreLocation: true });
 
 const salesOrderData = readJsonSafely(salesOrdersDbPath, []);
-const salesOrderFuse = new Fuse(salesOrderData, { keys: ['customer'], includeScore: true, threshold: 0.4 });
+const salesOrderFuse = new Fuse(salesOrderData, { keys: ['customer', 'material'], includeScore: true, threshold: 0.4 });
 
 const purchaseOrderData = readJsonSafely(purchaseOrdersDbPath, []);
-const purchaseOrderFuse = new Fuse(purchaseOrderData, { keys: ['vendor'], includeScore: true, threshold: 0.4 });
+const purchaseOrderFuse = new Fuse(purchaseOrderData, { keys: ['vendor', 'material'], includeScore: true, threshold: 0.4 });
 
 const knowledgeData = readJsonSafely(knowledgeDbPath, []);
 const knowledgeFuse = new Fuse(knowledgeData, { keys: ['term', 'definition'], includeScore: true, threshold: 0.45, ignoreLocation: true });
 
+// --- Helper function to split multiple items ---
+function extractMultipleItems(itemString) {
+  if (!itemString) return [];
+  
+  // Split by common delimiters: 'and', ',', '&', 'or'
+  const items = itemString
+    .split(/\s+(?:and|or|,|&)\s+|,\s*/i)
+    .map(item => item.trim())
+    .filter(item => item.length > 0);
+  
+  return items.length > 0 ? items : [itemString.trim()];
+}
 
 // --- Tools array with refined descriptions ---
 const tools = [
   { name: 'get_sap_definition', description: "Use this tool ONLY to define or explain a specific SAP term, concept, T-code (like 'fb60'), process, or abbreviation (e.g., 'What is fb60?', 'Define S/4HANA', 'process for sales order', 'how to enter vendor invoice'). Extract the core term/topic.", parameters: { "term": "The specific SAP term, topic, process, T-code, or abbreviation the user is asking about." } },
   { name: 'show_leave_application_form', description: 'Use this tool when the user explicitly asks to apply for leave, request time off, or wants a leave form.', parameters: {} },
-  // --- MODIFIED Description AGAIN for extraction emphasis ---
-  { name: 'query_inventory', description: "Use this tool ONLY when the user asks about stock levels OR asks if specific materials/items are in stock (e.g., 'check stock', 'do we have bearings?', 'stock of pump-1001', 'pumps and bearings'). **CRITICAL: You MUST extract the specific material name(s) or ID(s)** mentioned by the user and put them in the 'material_id' parameter. If multiple items are mentioned (like 'pumps and bearings'), combine them exactly as stated by the user into the 'material_id'. Do NOT use for general questions.", parameters: { "material_id": "(REQUIRED if mentioned) The exact name(s) or ID(s) of the material(s) the user asked about (e.g., 'PUMP-1001', 'bearings', 'pumps and bearings'). DO NOT omit this if the user mentions an item.", "comparison": "(Optional) The filter operator ('less than' or 'greater than')", "quantity": "(Optional) The numeric value for comparison" } },
-  { name: 'get_sales_orders', description: 'Use this tool ONLY to find/view EXISTING sales orders. Filter by customer or status if provided. Do NOT use for "how to", "process", or definition questions.', parameters: { "customer": "(Optional) The customer name to filter by.", "status": "(Optional) The order status to filter by (e.g., 'Open')." } },
-  { name: 'get_purchase_orders', description: 'Use this tool ONLY to find/view EXISTING purchase orders. Filter by vendor or status if provided. Do NOT use for "how to", "process", or definition questions.', parameters: { "vendor": "(Optional) The vendor name to filter by.", "status": "(Optional) The order status to filter by (e.g., 'Ordered')." } }
+  { name: 'query_inventory', description: "Use this tool ONLY when the user asks about stock levels OR asks if specific materials/items are in stock (e.g., 'check stock', 'do we have bearings?', 'stock of pump-1001', 'pumps and bearings'). **CRITICAL: You MUST extract the specific material name(s) or ID(s)** mentioned by the user and put them in the 'material_id' parameter. If multiple items are mentioned (like 'pumps and bearings'), include ALL items separated by 'and' or commas in the 'material_id'. Do NOT use for general questions.", parameters: { "material_id": "(REQUIRED if mentioned) The exact name(s) or ID(s) of the material(s) the user asked about. For multiple items, include all separated by 'and' or commas (e.g., 'PUMP-1001', 'bearings', 'pumps and bearings', 'bearings, pumps, valves'). DO NOT omit this if the user mentions item(s).", "comparison": "(Optional) The filter operator ('less than' or 'greater than')", "quantity": "(Optional) The numeric value for comparison" } },
+  { name: 'get_sales_orders', description: 'Use this tool ONLY to find/view EXISTING sales orders. Filter by customer, material(s), or status if provided. For multiple materials, include all separated by delimiters. Do NOT use for "how to", "process", or definition questions.', parameters: { "customer": "(Optional) The customer name to filter by.", "material": "(Optional) The material name(s) or ID(s) to filter by. For multiple materials, include all separated by 'and' or commas (e.g., 'pumps and bearings').", "status": "(Optional) The order status to filter by (e.g., 'Open')." } },
+  { name: 'get_purchase_orders', description: 'Use this tool ONLY to find/view EXISTING purchase orders. Filter by vendor, material(s), or status if provided. For multiple materials, include all separated by delimiters. Do NOT use for "how to", "process", or definition questions.', parameters: { "vendor": "(Optional) The vendor name to filter by.", "material": "(Optional) The material name(s) or ID(s) to filter by. For multiple materials, include all separated by 'and' or commas (e.g., 'pumps and bearings').", "status": "(Optional) The order status to filter by (e.g., 'Ordered')." } }
 ];
 
 // --- getToolsPrompt with priority rules ---
@@ -74,7 +85,7 @@ const getToolsPrompt = () => {
   Follow these rules STRICTLY based on the user's latest input:
   1. **Analyze Intent:** Determine the user's primary goal. Are they asking *what* something is or *how* to do something (Definition/Process)? Are they asking to *see data* (Inventory, SO, PO)? Are they asking for a *form* (Leave)? Or just chatting?
   2. **Definition/Process Questions:** If the user asks 'what is X', 'define X', 'explain X', 'process for X', or 'how to do X' (where X is an SAP term, T-code, concept, or process), you MUST use the 'get_sap_definition' tool. Extract X as the 'term'.
-  3. **Data/Form Requests:** If the user asks to see stock, orders, or get the leave form, use the corresponding tool ('query_inventory', 'get_sales_orders', 'get_purchase_orders', 'show_leave_application_form'). **CRITICAL PRIORITY:** You MUST extract relevant parameters accurately if mentioned (especially 'material_id' for query_inventory - extract exactly what the user asks for, e.g., 'pumps and bearings'). If parameters are needed but not clearly extractable, ask the user to clarify.
+  3. **Data/Form Requests:** If the user asks to see stock, orders, or get the leave form, use the corresponding tool ('query_inventory', 'get_sales_orders', 'get_purchase_orders', 'show_leave_application_form'). **CRITICAL PRIORITY:** You MUST extract relevant parameters accurately if mentioned. **For queries mentioning MULTIPLE items** (e.g., "bearings and pumps", "pumps, valves and bearings"), extract ALL items mentioned and include them in the parameter exactly as stated, preserving delimiters like 'and' or commas. If parameters are needed but not clearly extractable, ask the user to clarify.
   4. **Simple Chat:** If the input is *only* a simple acknowledgment ('ok', 'thanks'), compliment ('great job'), or greeting ('hello'), respond briefly and friendly using JSON format A.
   5. **Fallback:** If the input doesn't match rules 2, 3, or 4 (e.g., unrelated question, vague SAP request), respond politely using JSON format A, explaining you can use tools for specific tasks or define SAP terms/processes. DO NOT try to answer general SAP questions outside the scope of the tools.
 
@@ -99,7 +110,7 @@ async function callGroqLLM(systemPrompt, userPrompt, isJsonMode = false) {
   const payload = {
     model: 'llama-3.1-8b-instant',
     messages: messages,
-    temperature: 0.5, // Keep slightly lower temp for better instruction following
+    temperature: 0.5,
   };
 
   if (isJsonMode) {
@@ -122,7 +133,6 @@ async function callGroqLLM(systemPrompt, userPrompt, isJsonMode = false) {
       console.error("Unexpected response structure from Groq:", response.data);
        return { error: true, message: "Invalid response structure from AI.", status: 500 };
     }
-     // console.log("Raw Groq response content:", content); // Keep commented unless debugging
     return content;
 
   } catch (error) {
@@ -158,8 +168,8 @@ app.post('/api/chat', async (req, res) => {
 
   try {
     // --- STEP 1: Call Groq for the decision ---
-    const decisionMakingPrompt = `User's input: "${originalUserQuery}"\n\nBased on this input and the rules provided in the system prompt, what is the correct JSON response? Pay CLOSE attention to parameter extraction rules for tools.`; // Added emphasis
-    const decisionResult = await callGroqLLM(getToolsPrompt(), decisionMakingPrompt, true); // JSON mode
+    const decisionMakingPrompt = `User's input: "${originalUserQuery}"\n\nBased on this input and the rules provided in the system prompt, what is the correct JSON response? Pay CLOSE attention to parameter extraction rules for tools, especially when multiple items are mentioned.`;
+    const decisionResult = await callGroqLLM(getToolsPrompt(), decisionMakingPrompt, true);
 
     if (decisionResult && decisionResult.error) {
       console.error("Error getting decision from LLM:", decisionResult.message);
@@ -193,7 +203,6 @@ app.post('/api/chat', async (req, res) => {
       const parameters = decision.parameters || {};
 
       switch (decision.tool_name) {
-        // --- MODIFIED CASE 'get_sap_definition' ---
         case 'get_sap_definition': {
           let searchTerm = parameters.term;
           if (!searchTerm) {
@@ -246,9 +255,7 @@ app.post('/api/chat', async (req, res) => {
           }
           break;
         }
-        // --- END MODIFIED CASE ---
 
-        // --- Other tool cases ---
         case 'show_leave_application_form':
           console.log("--> Triggering leave form display.");
           toolResult = { type: 'leave_application_form' };
@@ -256,20 +263,33 @@ app.post('/api/chat', async (req, res) => {
 
         case 'query_inventory': {
            console.log("--> Querying inventory with params:", parameters);
-          let inventory = stockList;
-          // --- IMPROVED: Handle potentially missing material_id ---
-          const materialSearchTerm = parameters.material_id; // Parameter MUST be extracted by LLM now
+          let inventory = [];
+          const materialSearchTerm = parameters.material_id;
+          
           if (materialSearchTerm) {
-             console.log(`--> Filtering inventory by material: "${materialSearchTerm}"`);
-             // Use Fuse.js to search based on the extracted term (could be "pumps", "bearings", or "pumps and bearings")
-            const searchResults = stockFuse.search(materialSearchTerm);
-            inventory = searchResults.map(result => result.item);
-             console.log(`--> Found ${inventory.length} potential matches for "${materialSearchTerm}".`);
+             console.log(`--> Filtering inventory by material(s): "${materialSearchTerm}"`);
+             
+             // Extract multiple items
+             const items = extractMultipleItems(materialSearchTerm);
+             console.log(`--> Extracted ${items.length} item(s):`, items);
+             
+             // Search for each item and collect results
+             const allResults = new Map(); // Use Map to avoid duplicates by Material ID
+             
+             for (const item of items) {
+               const searchResults = stockFuse.search(item);
+               searchResults.forEach(result => {
+                 if (!allResults.has(result.item.Material)) {
+                   allResults.set(result.item.Material, result.item);
+                 }
+               });
+             }
+             
+             inventory = Array.from(allResults.values());
+             console.log(`--> Found ${inventory.length} unique items across all searches.`);
           } else {
-             // This case should ideally not happen if Rule 3 is followed by the LLM
-             console.warn("--> Tool 'query_inventory' called without 'material_id' even though user mentioned item(s). Showing all stock as fallback.");
-             // Decide: Show all stock or ask for clarification? Showing all for now.
-             // inventory = stockList; // Already initialized
+             console.warn("--> Tool 'query_inventory' called without 'material_id'. Showing all stock as fallback.");
+             inventory = stockList;
           }
 
           if (parameters.comparison && parameters.quantity) {
@@ -302,17 +322,51 @@ app.post('/api/chat', async (req, res) => {
         case 'get_sales_orders': {
            console.log("--> Getting sales orders with params:", parameters);
           let salesOrdersResults = salesOrderData;
+          
+          // Filter by customer if provided
           if (parameters.customer) {
              console.log(`--> Filtering SO by customer: "${parameters.customer}"`);
             const searchResults = salesOrderFuse.search(parameters.customer);
             salesOrdersResults = searchResults.map(result => result.item);
           }
+          
+          // Filter by material(s) if provided
+          if (parameters.material) {
+             console.log(`--> Filtering SO by material(s): "${parameters.material}"`);
+             
+             // Extract multiple materials
+             const materials = extractMultipleItems(parameters.material);
+             console.log(`--> Extracted ${materials.length} material(s):`, materials);
+             
+             // Search for each material
+             const allResults = new Map();
+             
+             for (const material of materials) {
+               const materialFuse = new Fuse(salesOrdersResults, { 
+                 keys: ['material'], 
+                 includeScore: true, 
+                 threshold: 0.4 
+               });
+               const searchResults = materialFuse.search(material);
+               searchResults.forEach(result => {
+                 if (!allResults.has(result.item.id)) {
+                   allResults.set(result.item.id, result.item);
+                 }
+               });
+             }
+             
+             salesOrdersResults = Array.from(allResults.values());
+             console.log(`--> Found ${salesOrdersResults.length} orders with matching materials.`);
+          }
+          
+          // Filter by status if provided
           if (parameters.status) {
              console.log(`--> Filtering SO by status: "${parameters.status}"`);
             const statusFuse = new Fuse(salesOrdersResults, { keys: ['status'], includeScore: true, threshold: 0.4 });
             const statusSearchResults = statusFuse.search(parameters.status);
             salesOrdersResults = statusSearchResults.map(result => result.item);
           }
+          
           const mappedData = salesOrdersResults.map(order => ({
             'ID': order.id, 'Customer': order.customer, 'Material': order.material,
             'Quantity': order.quantity, 'Status': order.status, 'Value': order.value
@@ -329,17 +383,51 @@ app.post('/api/chat', async (req, res) => {
         case 'get_purchase_orders': {
            console.log("--> Getting purchase orders with params:", parameters);
           let purchaseOrdersResults = purchaseOrderData;
+          
+          // Filter by vendor if provided
           if (parameters.vendor) {
              console.log(`--> Filtering PO by vendor: "${parameters.vendor}"`);
             const searchResults = purchaseOrderFuse.search(parameters.vendor);
             purchaseOrdersResults = searchResults.map(result => result.item);
           }
+          
+          // Filter by material(s) if provided
+          if (parameters.material) {
+             console.log(`--> Filtering PO by material(s): "${parameters.material}"`);
+             
+             // Extract multiple materials
+             const materials = extractMultipleItems(parameters.material);
+             console.log(`--> Extracted ${materials.length} material(s):`, materials);
+             
+             // Search for each material
+             const allResults = new Map();
+             
+             for (const material of materials) {
+               const materialFuse = new Fuse(purchaseOrdersResults, { 
+                 keys: ['material'], 
+                 includeScore: true, 
+                 threshold: 0.4 
+               });
+               const searchResults = materialFuse.search(material);
+               searchResults.forEach(result => {
+                 if (!allResults.has(result.item.id)) {
+                   allResults.set(result.item.id, result.item);
+                 }
+               });
+             }
+             
+             purchaseOrdersResults = Array.from(allResults.values());
+             console.log(`--> Found ${purchaseOrdersResults.length} orders with matching materials.`);
+          }
+          
+          // Filter by status if provided
           if (parameters.status) {
              console.log(`--> Filtering PO by status: "${parameters.status}"`);
             const statusFuse = new Fuse(purchaseOrdersResults, { keys: ['status'], includeScore: true, threshold: 0.4 });
             const statusSearchResults = statusFuse.search(parameters.status);
             purchaseOrdersResults = statusSearchResults.map(result => result.item);
           }
+          
           const poMappedData = purchaseOrdersResults.map(order => ({
             'ID': order.id, 'Vendor': order.vendor, 'Material': order.material,
             'Quantity': order.quantity, 'Status': order.status, 'Value': order.value
