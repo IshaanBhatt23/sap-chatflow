@@ -119,20 +119,20 @@ async function callGroqLLM(systemPrompt, userPrompt, isJsonMode = false) {
 async function extractParameters(originalUserQuery, toolName) {
   console.log(`--> Attempting secondary extraction for tool: ${toolName}`);
   let extractionPrompt = '';
-  let expectedParams = {}; // Define expected parameters structure
+  // let expectedParams = {}; // Define expected parameters structure - removed as it wasn't used
 
   switch (toolName) {
     case 'query_inventory':
       extractionPrompt = `User query: "${originalUserQuery}"\n\nExtract the specific material name(s) or ID(s) mentioned (like 'pump', 'bearings', 'pump-1001', 'pumps and bearings'). Also extract any comparison ('less than', 'greater than') and quantity. Respond ONLY with a valid JSON object containing extracted values for "material_id", "comparison", and "quantity". If a value isn't mentioned, omit the key or set it to null. Example: {"material_id": "pumps and bearings", "comparison": null, "quantity": null}`;
-      expectedParams = { material_id: null, comparison: null, quantity: null };
+      // expectedParams = { material_id: null, comparison: null, quantity: null };
       break;
     case 'get_sales_orders':
       extractionPrompt = `User query: "${originalUserQuery}"\n\nExtract the customer name and/or order status mentioned. Respond ONLY with a valid JSON object containing extracted values for "customer" and "status". If a value isn't mentioned, omit the key or set it to null. Example: {"customer": "Tech Corp", "status": "Open"}`;
-      expectedParams = { customer: null, status: null };
+      // expectedParams = { customer: null, status: null };
       break;
     case 'get_purchase_orders':
       extractionPrompt = `User query: "${originalUserQuery}"\n\nExtract the vendor name and/or order status mentioned. Respond ONLY with a valid JSON object containing extracted values for "vendor" and "status". If a value isn't mentioned, omit the key or set it to null. Example: {"vendor": "Supplier XYZ", "status": "Delivered"}`;
-      expectedParams = { vendor: null, status: null };
+      // expectedParams = { vendor: null, status: null };
       break;
     default:
       console.warn(`--> Secondary extraction not configured for tool: ${toolName}`);
@@ -173,18 +173,29 @@ app.post('/api/chat', async (req, res) => {
     const toolChoicePrompt = `User's input: "${originalUserQuery}"\n\nBased ONLY on the user's input and the provided tool descriptions, choose the best tool or decide on a text response. Extract parameters ONLY if extremely simple and obvious (like a T-code). Output JSON.`;
     const decisionResult = await callGroqLLM(getToolsPrompt(), toolChoicePrompt, true); // JSON mode
 
-    // ... (Error handling for decisionResult as before) ...
-     if (decisionResult && decisionResult.error) { /* ... handle error ... */ return res.status(decisionResult.status || 500).json({ error: decisionResult.message }); }
+    if (decisionResult && decisionResult.error) {
+      console.error("Error getting decision from LLM:", decisionResult.message);
+      return res.status(decisionResult.status || 500).json({ error: decisionResult.message });
+     }
      const decisionString = decisionResult;
-     if (!decisionString) { /* ... handle error ... */ return res.status(500).json({ error: "AI service failed to provide a decision." }); }
+     if (!decisionString) {
+      console.error("AI service returned null or undefined decision string.");
+      return res.status(500).json({ error: "AI service failed to provide a decision." });
+     }
 
     let decision;
     try {
       decision = JSON.parse(decisionString);
       console.log("==> Parsed AI decision (Step 1 - Tool Choice):", JSON.stringify(decision, null, 2));
     } catch (parseError) {
-       // ... (Handle parse error as before, potentially fallback to text) ...
-       console.error("Failed to parse JSON decision:", decisionString, parseError); return res.status(500).json({ error: "Failed to interpret AI decision." });
+       console.error("Failed to parse JSON decision:", decisionString, parseError);
+       // Attempt to handle non-JSON text response gracefully if parsing fails
+       if (typeof decisionString === 'string' && !decisionString.trim().startsWith('{')) {
+         console.log("Decision wasn't JSON, using as text fallback.");
+         return res.json({ type: 'text', content: decisionString });
+       }
+       console.error("Decision string was not valid JSON and not plain text.");
+       return res.status(500).json({ error: "Failed to interpret AI decision." });
     }
 
     // --- STEP 2: Execute the decision ---
@@ -194,75 +205,129 @@ app.post('/api/chat', async (req, res) => {
       let parameters = decision.parameters || {}; // Start with parameters from Step 1
 
       // --- STEP 2.1: SECONDARY PARAMETER EXTRACTION (if needed) ---
-      const needsParams = ['query_inventory', 'get_sales_orders', 'get_purchase_orders'].includes(decision.tool_name);
-      const paramsMissing = (
-        (decision.tool_name === 'query_inventory' && !parameters.material_id && originalUserQuery.match(/\b(stock of|have|inventory of|levels of)\b.*\b([a-zA-Z0-9\-\s]+)\b/i)) || // Check if likely material was mentioned
-        (decision.tool_name === 'get_sales_orders' && (!parameters.customer && !parameters.status)) || // Add more checks if needed
-        (decision.tool_name === 'get_purchase_orders' && (!parameters.vendor && !parameters.status)) // Add more checks if needed
-      );
+      const needsParamsTools = ['query_inventory', 'get_sales_orders', 'get_purchase_orders', 'get_sap_definition']; // Include definition tool here
+      const needsParams = needsParamsTools.includes(decision.tool_name);
+      let runSecondaryExtraction = false;
 
-       // Simple check: if a tool needing params has none extracted, try again.
-      if (needsParams && Object.keys(parameters).length === 0 && decision.tool_name !== 'get_sap_definition') {
-          console.log(`--> Parameters potentially missing for ${decision.tool_name}. Running secondary extraction.`);
+      // Logic to decide if secondary extraction is needed
+      if (needsParams) {
+          if (Object.keys(parameters).length === 0 && decision.tool_name !== 'show_leave_application_form') {
+              // If no params were extracted at all for tools that might need them
+              console.log(`--> No params extracted initially for ${decision.tool_name}. Running secondary extraction.`);
+              runSecondaryExtraction = true;
+          } else if (decision.tool_name === 'query_inventory' && !parameters.material_id && originalUserQuery.match(/\b(of|have|stock)\b.*\b([a-zA-Z]{3,})\b/i)) {
+              // Specific check for inventory if material_id likely missed
+              console.log(`--> 'material_id' likely missed for query_inventory. Running secondary extraction.`);
+              runSecondaryExtraction = true;
+          }
+           // Add similar specific checks for get_sales_orders and get_purchase_orders if needed
+           else if (decision.tool_name === 'get_sales_orders' && !parameters.customer && originalUserQuery.match(/\b(for|customer)\b.*\b([A-Z][a-zA-Z\s]+)\b/i)) {
+               console.log(`--> 'customer' likely missed for get_sales_orders. Running secondary extraction.`);
+               runSecondaryExtraction = true;
+           }
+            else if (decision.tool_name === 'get_purchase_orders' && !parameters.vendor && originalUserQuery.match(/\b(for|vendor)\b.*\b([A-Z][a-zA-Z\s]+)\b/i)) {
+               console.log(`--> 'vendor' likely missed for get_purchase_orders. Running secondary extraction.`);
+               runSecondaryExtraction = true;
+           }
+      }
+
+
+      if (runSecondaryExtraction) {
           const extractedParams = await extractParameters(originalUserQuery, decision.tool_name);
-          // Merge extracted params, giving preference to newly extracted ones if keys overlap
+          // Merge params: Give preference to secondary extraction results for keys it tried to extract
           parameters = { ...parameters, ...extractedParams };
           console.log("--> Merged parameters after secondary extraction:", parameters);
       }
-      // Specific check for query_inventory if material_id seems missing despite user mentioning items
-       else if (decision.tool_name === 'query_inventory' && !parameters.material_id && originalUserQuery.match(/\b(of|have)\b.*\b([a-zA-Z]{3,})\b/i)) { // Simple regex check for item names
-            console.log(`--> 'material_id' missing for query_inventory despite possible mention. Running secondary extraction.`);
-            const extractedParams = await extractParameters(originalUserQuery, decision.tool_name);
-            parameters = { ...parameters, ...extractedParams };
-            console.log("--> Merged parameters after secondary extraction for inventory:", parameters);
-       }
 
 
       // --- STEP 2.2: Execute Tool Logic with FINAL parameters ---
       switch (decision.tool_name) {
         case 'get_sap_definition': {
-          // ... (Existing logic, but use 'parameters.term') ...
           let searchTerm = parameters.term;
-          if (!searchTerm) { /* handle missing term */ toolResult = { type: 'text', content: "Please tell me which SAP term or process you want explained." }; break; }
+          if (!searchTerm) {
+            console.warn("get_sap_definition called without term even after potential extraction.");
+            toolResult = { type: 'text', content: "Please specify the SAP term or process you'd like explained." };
+            break;
+           }
+          // Use original searchTerm for prompts, normalized for KB search
           const normalizedSearchTerm = searchTerm.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
           const askedForProcess = /\b(process|how to|steps)\b/i.test(originalUserQuery);
+          console.log(`--> Searching KB for: "${normalizedSearchTerm}", Asked for process: ${askedForProcess}`);
+
           const kbSearchResults = knowledgeFuse.search(normalizedSearchTerm);
           const topScore = kbSearchResults[0]?.score;
-          const goodKbMatch = kbSearchResults.length > 0 && topScore < 0.45;
+          const goodKbMatch = kbSearchResults.length > 0 && topScore < 0.45; // Keep threshold
+
           let llmSystemPrompt = 'You are a helpful SAP assistant explaining concepts simply.';
           let llmUserPrompt = '';
-          if (goodKbMatch) { /* KB match logic */
-              const definition = kbSearchResults[0].item.definition; const matchedTerm = kbSearchResults[0].item.term;
-              if (askedForProcess) { llmUserPrompt = `... Explain process using definition: "${definition}"...`; llmSystemPrompt = '... expert explaining processes...'; }
-              else { llmUserPrompt = `... Explain definition: "${definition}" with analogy...`; }
-          } else { /* No KB match logic */
-              if (askedForProcess) { llmUserPrompt = `... Explain process for "${searchTerm}"...`; llmSystemPrompt = '... expert explaining processes...'; }
-              else { llmUserPrompt = `... Define "${searchTerm}" only if confident...`; }
+
+          if (goodKbMatch) {
+            console.log('--> Found KB match:', kbSearchResults[0].item.term, `(Score: ${topScore})`);
+            const definition = kbSearchResults[0].item.definition;
+            const matchedTerm = kbSearchResults[0].item.term;
+
+            if (askedForProcess) {
+              llmUserPrompt = `The user asked about the process related to "${searchTerm}". Found definition for "${matchedTerm}": "${definition}". Explain clearly, then briefly outline typical steps. Use analogy. Final explanation only.`;
+              llmSystemPrompt = 'You are an SAP expert explaining processes clearly.';
+            } else {
+              llmUserPrompt = `User asked about "${searchTerm}". Explain definition for "${matchedTerm}" simply with analogy: "${definition}". Final explanation only.`;
+            }
+          } else {
+            console.log(`--> No good KB match for "${normalizedSearchTerm}". Asking fallback.`);
+            if (askedForProcess) {
+               llmUserPrompt = `User asked for SAP process "${searchTerm}". Not in KB. Outline typical steps concisely with analogy. If unsure, say: "Couldn't find details for '${searchTerm}' process. Describe goal?"`;
+               llmSystemPrompt = 'You are an SAP expert explaining processes clearly.';
+            } else {
+              llmUserPrompt = `User asked for SAP term "${searchTerm}". Not in KB. Define concisely with analogy ONLY if confident of SAP context. If unsure, say: "Couldn't find definition for '${searchTerm}'. More context or check spelling?"`;
+            }
           }
+
           const finalResult = await callGroqLLM(llmSystemPrompt, llmUserPrompt);
-          if (finalResult && !finalResult.error) { toolResult = { type: 'text', content: finalResult }; }
-          else { /* handle error */ toolResult = { type: 'text', content: `Sorry, issue explaining '${searchTerm}'.` }; }
+
+          if (finalResult && !finalResult.error) {
+            toolResult = { type: 'text', content: finalResult };
+          } else {
+            console.error("Error getting final explanation:", finalResult?.message);
+            toolResult = { type: 'text', content: `Sorry, issue explaining '${searchTerm}'.` };
+          }
           break;
         }
 
         case 'show_leave_application_form':
+          console.log("--> Triggering leave form display.");
           toolResult = { type: 'leave_application_form' };
           break;
 
         case 'query_inventory': {
           console.log("--> Final inventory query with params:", parameters);
           let inventory = stockList;
-          const materialSearchTerm = parameters.material_id; // Use final param
+          const materialSearchTerm = parameters.material_id;
           if (materialSearchTerm) {
             console.log(`--> Filtering inventory by final material: "${materialSearchTerm}"`);
             const searchResults = stockFuse.search(materialSearchTerm);
             inventory = searchResults.map(result => result.item);
             console.log(`--> Found ${inventory.length} matches.`);
           } else {
-             console.log("--> No material specified, showing all inventory.");
+             // If secondary extraction also failed or wasn't run
+             console.log("--> No material specified or extracted, showing all inventory.");
+             // inventory = stockList; // Already initialized to all stock
           }
-          // ... (quantity/comparison filtering remains the same) ...
-           if (parameters.comparison && parameters.quantity) { /* filter by qty */ }
+
+          if (parameters.comparison && parameters.quantity) {
+            const qty = parseInt(parameters.quantity, 10);
+            const comparison = parameters.comparison.toLowerCase();
+            console.log(`--> Filtering inventory by quantity: ${comparison} ${qty}`);
+            if (!isNaN(qty)) {
+                inventory = inventory.filter(item => {
+                  const itemStock = parseInt(item['Stock Level'], 10);
+                  if (isNaN(itemStock)) return false;
+                  if (comparison.includes('less') || comparison.includes('<')) return itemStock < qty;
+                  if (comparison.includes('more') || comparison.includes('greater') || comparison.includes('>')) return itemStock > qty;
+                  return false;
+                });
+            } else { console.warn("--> Invalid quantity provided:", parameters.quantity); }
+          }
+          console.log(`--> Returning ${inventory.length} inventory items.`);
           toolResult = { type: 'table', tableColumns: ['Material', 'Description', 'Stock Level', 'Plant'], tableData: inventory };
           break;
         }
@@ -270,28 +335,54 @@ app.post('/api/chat', async (req, res) => {
         case 'get_sales_orders': {
            console.log("--> Final SO query with params:", parameters);
            let salesOrdersResults = salesOrderData;
-           if (parameters.customer) { /* filter by customer */ const searchResults = salesOrderFuse.search(parameters.customer); salesOrdersResults = searchResults.map(r=>r.item); }
-           if (parameters.status) { /* filter by status */ const statusFuse = new Fuse(salesOrdersResults, {keys:['status'], ...}); const statusResults = statusFuse.search(parameters.status); salesOrdersResults = statusResults.map(r=>r.item); }
-           const mappedData = salesOrdersResults.map(order => ({ /* map fields */ }));
-           toolResult = { type: 'table', tableColumns: [/* cols */], tableData: mappedData };
+           if (parameters.customer) {
+             console.log(`--> Filtering SO by customer: "${parameters.customer}"`);
+             const searchResults = salesOrderFuse.search(parameters.customer);
+             salesOrdersResults = searchResults.map(result => result.item);
+           }
+           if (parameters.status) {
+             console.log(`--> Filtering SO by status: "${parameters.status}"`);
+             const statusFuse = new Fuse(salesOrdersResults, { keys: ['status'], includeScore: true, threshold: 0.4 });
+             const statusSearchResults = statusFuse.search(parameters.status);
+             salesOrdersResults = statusSearchResults.map(result => result.item);
+           }
+           const mappedData = salesOrdersResults.map(order => ({
+            'ID': order.id, 'Customer': order.customer, 'Material': order.material,
+            'Quantity': order.quantity, 'Status': order.status, 'Value': order.value
+           }));
+           console.log(`--> Returning ${mappedData.length} sales orders.`);
+           toolResult = { type: 'table', tableColumns: ['ID', 'Customer', 'Material', 'Quantity', 'Status', 'Value'], tableData: mappedData };
           break;
         }
 
         case 'get_purchase_orders': {
            console.log("--> Final PO query with params:", parameters);
            let purchaseOrdersResults = purchaseOrderData;
-           if (parameters.vendor) { /* filter by vendor */ const searchResults = purchaseOrderFuse.search(parameters.vendor); purchaseOrdersResults = searchResults.map(r=>r.item); }
-           if (parameters.status) { /* filter by status */ const statusFuse = new Fuse(purchaseOrdersResults, {keys:['status'], ...}); const statusResults = statusFuse.search(parameters.status); purchaseOrdersResults = statusResults.map(r=>r.item); }
-           const poMappedData = purchaseOrdersResults.map(order => ({ /* map fields */ }));
-           toolResult = { type: 'table', tableColumns: [/* cols */], tableData: poMappedData };
+           if (parameters.vendor) {
+             console.log(`--> Filtering PO by vendor: "${parameters.vendor}"`);
+             const searchResults = purchaseOrderFuse.search(parameters.vendor);
+             purchaseOrdersResults = searchResults.map(result => result.item);
+            }
+           if (parameters.status) {
+             console.log(`--> Filtering PO by status: "${parameters.status}"`);
+             const statusFuse = new Fuse(purchaseOrdersResults, { keys: ['status'], includeScore: true, threshold: 0.4 });
+             const statusSearchResults = statusFuse.search(parameters.status);
+             purchaseOrdersResults = statusSearchResults.map(result => result.item);
+           }
+           const poMappedData = purchaseOrdersResults.map(order => ({
+             'ID': order.id, 'Vendor': order.vendor, 'Material': order.material,
+             'Quantity': order.quantity, 'Status': order.status, 'Value': order.value
+           }));
+           console.log(`--> Returning ${poMappedData.length} purchase orders.`);
+           toolResult = { type: 'table', tableColumns: ['ID', 'Vendor', 'Material', 'Quantity', 'Status', 'Value'], tableData: poMappedData };
           break;
         }
 
         default: // Unhandled tool
             console.warn(`--> Unhandled tool detected after potential extraction: ${decision.tool_name}`);
-            const fallbackTextPrompt = `... Ask user to clarify ...`;
+            const fallbackTextPrompt = `User query: "${originalUserQuery}". An unexpected tool '${decision.tool_name}' was suggested. Ask the user to rephrase their request clearly.`;
             const fallbackResult = await callGroqLLM('You are a helpful SAP assistant.', fallbackTextPrompt);
-            const fallbackContent = fallbackResult && !fallbackResult.error ? fallbackResult : "Sorry, ... rephrase?";
+            const fallbackContent = fallbackResult && !fallbackResult.error ? fallbackResult : "Sorry, I couldn't process that request. Could you please rephrase?";
             toolResult = { type: 'text', content: fallbackContent };
       }
       res.json(toolResult);
@@ -340,6 +431,8 @@ app.post('/api/submit-leave', (req, res) => {
     res.status(500).json({ error: 'Failed to save the leave application.' });
   }
 });
+
+// --- Server Start for Render ---
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ SAP Assistant Backend is running on port ${PORT}`);
