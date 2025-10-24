@@ -238,7 +238,7 @@ app.post('/api/chat', async (req, res) => {
 
             if (askedForProcess) {
               // User wants a process explanation
-              llmSystemPrompt = `You are a friendly SAP expert who explains processes in a conversational, easy-to-understand way. You break down complex SAP procedures into simple steps, use analogies from everyday life, and make learning SAP feel approachable.`;
+              llmSystemPrompt = `You are a friendly SAP expert who explains processes in a conversational, easy-to-understand way. You break down complex SAP procedures into simple steps, use analogies from everyday life, and make learning SAP feel approachable. Keep responses concise and focused - aim for 3-5 sentences maximum.`;
               
               llmUserPrompt = `A user asked: "${originalUserQuery}"
 
@@ -246,17 +246,17 @@ I found these relevant SAP terms in our knowledge base:
 ${kbContext}
 
 Your task:
-1. Read through the KB information and understand the related concepts
-2. Explain the step-by-step process for "${searchTerm}" in a clear, conversational way
-3. Use a simple analogy to help them understand (like comparing SAP processes to everyday activities)
-4. Be specific about the steps but keep it friendly and not too technical
-5. If the KB doesn't have complete process details, use your SAP knowledge to fill in the gaps logically
+1. Explain ONLY what the user asked about - stay focused on "${searchTerm}"
+2. Give a brief, step-by-step process (3-5 main steps maximum)
+3. Include ONE simple analogy to make it relatable
+4. Keep it short, friendly, and energetic - like a quick helpful tip
+5. DO NOT explain related terms or go off-topic
 
-Format your response like you're explaining to a colleague over coffee, not reading from a manual. Make it helpful and memorable!`;
+Keep your response under 150 words. Be concise and punchy!`;
 
             } else {
               // User wants a definition/explanation
-              llmSystemPrompt = `You are a friendly SAP expert who explains concepts in a way anyone can understand. You use analogies, examples, and conversational language to make SAP terminology accessible.`;
+              llmSystemPrompt = `You are a friendly SAP expert who explains concepts in a way anyone can understand. You use analogies, examples, and conversational language to make SAP terminology accessible. Keep responses concise and energetic - aim for 2-4 sentences maximum.`;
               
               llmUserPrompt = `A user asked: "${originalUserQuery}"
 
@@ -264,13 +264,13 @@ I found these relevant SAP terms in our knowledge base:
 ${kbContext}
 
 Your task:
-1. Explain what "${searchTerm}" means based on the KB information
-2. Use a simple, relatable analogy to help them understand the concept
-3. Keep it conversational and friendly - like you're explaining to a friend
-4. If there are multiple related terms, weave them together to give a complete picture
-5. Make sure your explanation is accurate but not overly technical
+1. Explain ONLY what "${searchTerm}" is - stay laser-focused on this term
+2. Use ONE simple, relatable analogy
+3. Keep it super concise and friendly - like a quick explanation between colleagues
+4. DO NOT mention related terms, variants, or go into extra details unless directly relevant
+5. Make it energetic and clear
 
-Explain this in a way that makes the person say "Ah, now I get it!" Include the analogy naturally in your explanation.`;
+Keep your response under 80 words. Be brief, friendly, and to the point!`;
             }
 
           } else {
