@@ -42,7 +42,7 @@ function readJsonSafely(filePath, defaultValue = []) {
 // --- Load Data ---
 const stockData = readJsonSafely(stockDbPath, {});
 const stockList = Object.entries(stockData).map(([id, data]) => ({ Material: id, ...data }));
-const stockFuse = new Fuse(stockList, { keys: ['Material', 'Description'], includeScore: true, threshold: 0.4, ignoreLocation: true }); // Added ignoreLocation
+const stockFuse = new Fuse(stockList, { keys: ['Material', 'Description'], includeScore: true, threshold: 0.4, ignoreLocation: true });
 
 const salesOrderData = readJsonSafely(salesOrdersDbPath, []);
 const salesOrderFuse = new Fuse(salesOrderData, { keys: ['customer'], includeScore: true, threshold: 0.4 });
@@ -51,8 +51,7 @@ const purchaseOrderData = readJsonSafely(purchaseOrdersDbPath, []);
 const purchaseOrderFuse = new Fuse(purchaseOrderData, { keys: ['vendor'], includeScore: true, threshold: 0.4 });
 
 const knowledgeData = readJsonSafely(knowledgeDbPath, []);
-// --- Relaxed threshold ---
-const knowledgeFuse = new Fuse(knowledgeData, { keys: ['term', 'definition'], includeScore: true, threshold: 0.45, ignoreLocation: true }); // Added ignoreLocation
+const knowledgeFuse = new Fuse(knowledgeData, { keys: ['term', 'definition'], includeScore: true, threshold: 0.45, ignoreLocation: true });
 
 // --- Tools array with refined descriptions ---
 const tools = [
@@ -63,9 +62,9 @@ const tools = [
   { name: 'get_purchase_orders', description: 'Use this tool when the user asks to see or find purchase orders. Can be filtered by vendor name or status (e.g., "ordered", "delivered"). Extract filters if provided.', parameters: { "vendor": "(Optional) The name of the vendor to filter by.", "status": "(Optional) The status of the orders to filter by (e.g., 'Ordered')." } }
 ];
 
-// --- MODIFIED: getToolsPrompt with clearer rules ---
+// --- getToolsPrompt with clearer rules ---
 const getToolsPrompt = () => {
-  return `You are a helpful SAP Assistant. Your primary goal is to assist users with specific SAP-related tasks using the tools provided.
+  return `You are a helpful and friendly SAP Assistant. Your primary goal is to assist users with specific SAP-related tasks using the tools provided, explaining concepts clearly, potentially using analogies.
 
   Available Tools:
   ${tools.map(tool => `- ${tool.name}: ${tool.description} (Parameters: ${JSON.stringify(tool.parameters)})`).join('\n')}
@@ -73,8 +72,8 @@ const getToolsPrompt = () => {
   Follow these rules STRICTLY based on the user's latest input:
   1. Analyze the user's input. Does it clearly ask for an action described by one of the tools?
   2. If YES: Choose the corresponding tool_name. **Extract any relevant parameters** mentioned (like term, material_id, customer, vendor, status). Respond in JSON format B.
-  3. If NO, and the user input is a simple acknowledgment (e.g., 'ok', 'thanks', 'great'), compliment ('you are amazing'), or greeting ('hello'): Respond with a brief, friendly text message in JSON format A.
-  4. If NO, and it's NOT a simple acknowledgment/compliment/greeting (e.g., it's a general question about SAP, a vague request, or something unrelated): Respond with a polite text message in JSON format A explaining you can only perform actions related to the available tools.
+  3. If NO, and the user input is a simple acknowledgment (e.g., 'ok', 'thanks', 'great'), compliment ('you are amazing'), or greeting ('hello'): Respond with a brief, friendly text message in JSON format A (e.g., "You're welcome!", "Okay.", "Got it!").
+  4. If NO, and it's NOT a simple acknowledgment/compliment/greeting (e.g., it's a general question about SAP, a vague request, or something unrelated): Respond with a polite text message in JSON format A explaining you can only perform actions related to the available tools or define specific terms using the 'get_sap_definition' tool.
 
   Your response MUST be a single, valid JSON object with ONE of the following formats ONLY:
   A. For text responses: { "type": "text", "content": "Your conversational response here." }
@@ -86,7 +85,6 @@ const getToolsPrompt = () => {
 async function callGroqLLM(systemPrompt, userPrompt, isJsonMode = false) {
   if (!GROQ_API_KEY) {
     console.error("GROQ_API_KEY environment variable not set.");
-    // Return a structured error object instead of throwing immediately
     return { error: true, message: "Groq API key is missing.", status: 500 };
   }
 
@@ -98,7 +96,7 @@ async function callGroqLLM(systemPrompt, userPrompt, isJsonMode = false) {
   const payload = {
     model: 'llama-3.1-8b-instant',
     messages: messages,
-    temperature: 0.3, // Lowered temperature further for consistency
+    temperature: 0.4, // Slightly increased temperature for more natural language
   };
 
   if (isJsonMode) {
@@ -121,9 +119,8 @@ async function callGroqLLM(systemPrompt, userPrompt, isJsonMode = false) {
       console.error("Unexpected response structure from Groq:", response.data);
        return { error: true, message: "Invalid response structure from AI.", status: 500 };
     }
-     // Added logging for raw response content
      console.log("Raw Groq response content:", content);
-    return content; // Return successful content
+    return content;
 
   } catch (error) {
     console.error("Error calling Groq API:");
@@ -141,33 +138,31 @@ async function callGroqLLM(systemPrompt, userPrompt, isJsonMode = false) {
       console.error('Error Message:', error.message);
        message = error.message;
     }
-     // Return a structured error object
      return { error: true, message: message, status: status };
   }
 }
 // --- END HELPER FUNCTION ---
 
 
-// --- Main Chat Endpoint with more logging ---
+// --- Main Chat Endpoint ---
 app.post('/api/chat', async (req, res) => {
   const { messageHistory } = req.body;
   if (!Array.isArray(messageHistory) || messageHistory.length === 0) {
     return res.status(400).json({ error: 'Invalid messageHistory provided.' });
   }
   const userQuery = messageHistory[messageHistory.length - 1].text;
-  console.log(`\n--- Received query: "${userQuery}" ---`); // Log query
+  console.log(`\n--- Received query: "${userQuery}" ---`);
 
   try {
     // --- STEP 1: Call Groq for the decision ---
     const decisionMakingPrompt = `User's input: "${userQuery}"\n\nBased on this input and the rules provided in the system prompt, what is the correct JSON response?`;
     const decisionResult = await callGroqLLM(getToolsPrompt(), decisionMakingPrompt, true); // JSON mode
 
-    // Check if callGroqLLM returned an error object
     if (decisionResult && decisionResult.error) {
       console.error("Error getting decision from LLM:", decisionResult.message);
       return res.status(decisionResult.status || 500).json({ error: decisionResult.message });
     }
-    const decisionString = decisionResult; // Assign if no error
+    const decisionString = decisionResult;
 
     if (!decisionString) {
       console.error("AI service returned null or undefined decision string.");
@@ -177,10 +172,9 @@ app.post('/api/chat', async (req, res) => {
     let decision;
     try {
       decision = JSON.parse(decisionString);
-      console.log("==> Parsed AI decision:", JSON.stringify(decision, null, 2)); // Pretty print decision
+      console.log("==> Parsed AI decision:", JSON.stringify(decision, null, 2));
     } catch (parseError) {
       console.error("Failed to parse JSON decision from Groq:", decisionString, parseError);
-      // Attempt fallback only if it looks like plain text
       if (typeof decisionString === 'string' && !decisionString.trim().startsWith('{')) {
          console.log("Decision wasn't JSON, using as text fallback.");
          return res.json({ type: 'text', content: decisionString });
@@ -206,14 +200,16 @@ app.post('/api/chat', async (req, res) => {
           console.log(`--> Searching KB for: "${searchTerm}"`);
           const kbSearchResults = knowledgeFuse.search(searchTerm);
           const topScore = kbSearchResults[0]?.score;
-          console.log(`--> KB Search Results (Top Score: ${topScore}):`, kbSearchResults.slice(0, 3)); // Log top 3 results
-          const goodKbMatch = kbSearchResults.length > 0 && topScore < 0.45; // Using 0.45 threshold
+          console.log(`--> KB Search Results (Top Score: ${topScore}):`, kbSearchResults.slice(0, 3));
+          const goodKbMatch = kbSearchResults.length > 0 && topScore < 0.45;
 
           if (goodKbMatch) {
             console.log('--> Found KB match:', kbSearchResults[0].item.term, `(Score: ${topScore})`);
             const definition = kbSearchResults[0].item.definition;
-            const rephrasePrompt = `Rephrase the following definition naturally for a user asking about "${searchTerm}": "${definition}". Just provide the final text response.`;
-            const rephrasedContentResult = await callGroqLLM('You are a helpful SAP assistant.', rephrasePrompt);
+            // --- MODIFIED: Added instruction for analogy ---
+            const rephrasePrompt = `A user asked about "${searchTerm}". Explain the following definition in a friendly, human-like way. If possible, include a simple analogy to make it easier to understand: "${definition}". Just provide the final text explanation.`;
+            const rephrasedContentResult = await callGroqLLM('You are a helpful SAP assistant explaining concepts simply.', rephrasePrompt);
+            // --- End modification ---
             if (rephrasedContentResult && !rephrasedContentResult.error) {
                  toolResult = { type: 'text', content: rephrasedContentResult };
             } else {
@@ -222,8 +218,10 @@ app.post('/api/chat', async (req, res) => {
             }
           } else {
             console.log(`--> No good KB match found for "${searchTerm}". Asking Groq fallback.`);
-            const fallbackPrompt = `The user asked for a definition of the SAP term "${searchTerm}". It wasn't found in our specific knowledge base. Provide a concise definition ONLY if you are confident you know what it means in an SAP context. If unsure, respond with: "I couldn't find a specific definition for '${searchTerm}' in my knowledge base. Could you provide more context or check the spelling?"`;
-            const fallbackContentResult = await callGroqLLM('You are a helpful SAP assistant.', fallbackPrompt);
+            // --- MODIFIED: Added instruction for analogy ---
+            const fallbackPrompt = `The user asked for a definition of the SAP term "${searchTerm}". It wasn't found in our specific knowledge base. Provide a concise, friendly, human-like definition ONLY if you are confident you know what it means in an SAP context. Try to include a simple analogy if it helps clarify. If unsure, respond with: "I couldn't find a specific definition for '${searchTerm}' in my knowledge base. Could you provide more context or check the spelling?"`;
+            const fallbackContentResult = await callGroqLLM('You are a helpful SAP assistant explaining concepts simply.', fallbackPrompt);
+            // --- End modification ---
              if (fallbackContentResult && !fallbackContentResult.error) {
                 toolResult = { type: 'text', content: fallbackContentResult };
              } else {
@@ -234,7 +232,7 @@ app.post('/api/chat', async (req, res) => {
           break;
         }
 
-        // --- Other tool cases ---
+        // --- Other tool cases remain mostly unchanged ---
         case 'show_leave_application_form':
           console.log("--> Triggering leave form display.");
           toolResult = { type: 'leave_application_form' };
