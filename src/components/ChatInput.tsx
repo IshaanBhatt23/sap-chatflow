@@ -1,18 +1,18 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Paperclip } from "lucide-react";
+import { Send } from "lucide-react"; // Removed Paperclip
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
-  onFileUpload: (file: File) => void;
+  // onFileUpload prop removed
   disabled?: boolean;
   activeSessionId?: string;
 }
 
 export const ChatInput = ({
   onSendMessage,
-  onFileUpload,
+  // onFileUpload prop removed
   disabled,
   activeSessionId,
 }: ChatInputProps) => {
@@ -38,40 +38,14 @@ export const ChatInput = ({
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      onFileUpload(file);
-      e.target.value = "";
-    }
-  };
+  // handleFileChange function removed
 
   return (
     // --- MODIFIED: Reduced vertical padding on mobile (py-3) ---
     <div className="border-t border-border bg-background px-4 py-3 md:py-8">
       {/* --- MODIFIED: Reduced gap on mobile (gap-2) --- */}
       <div className="relative flex items-center gap-2 md:gap-4">
-        <label htmlFor="file-upload" className="cursor-pointer">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            disabled={disabled}
-            onClick={() => document.getElementById("file-upload")?.click()}
-            // --- MODIFIED: Smaller button on mobile ---
-            className="h-10 w-10 md:h-14 md:w-14 flex-shrink-0"
-          >
-            {/* --- MODIFIED: Smaller icon on mobile --- */}
-            <Paperclip className="h-5 w-5 md:h-7 md:w-7 text-muted-foreground" />
-          </Button>
-          <input
-            id="file-upload"
-            type="file"
-            className="hidden"
-            onChange={handleFileChange}
-            accept=".csv,.xlsx,.xls,.txt"
-          />
-        </label>
+        {/* --- File Upload Label and Button Removed --- */}
 
         <Input
           ref={inputRef}
