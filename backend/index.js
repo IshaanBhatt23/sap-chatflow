@@ -94,7 +94,9 @@ async function callGroqLLM(systemPrompt, userPrompt, isJsonMode = false) {
   ];
 
   const payload = {
-    model: 'llama3-8b-8192', // Still using Llama 3!
+    // --- 🔽 THIS IS THE ONLY CHANGE 🔽 ---
+    model: 'llama3-70b-8192', // Use the larger, supported Llama 3 model
+    // --- 🔼 ---
     messages: messages,
     temperature: 0.7,
   };
@@ -127,16 +129,12 @@ async function callGroqLLM(systemPrompt, userPrompt, isJsonMode = false) {
   } catch (error) {
     console.error("Error calling Groq API:");
     if (error.response) {
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
       console.error("Data:", error.response.data);
       console.error("Status:", error.response.status);
       console.error("Headers:", error.response.headers);
     } else if (error.request) {
-      // The request was made but no response was received
       console.error("Request:", error.request);
     } else {
-      // Something happened in setting up the request that triggered an Error
       console.error('Error Message:', error.message);
     }
     throw new Error("Failed to get a response from the AI.");
