@@ -17,7 +17,7 @@ import {
 interface ChatWindowProps {
   messages: Message[]
   onPromptClick: (prompt: string) => void
-  onFormSubmit?: (formData: Record<string, any>) => void; // 👈 STEP 1: Accept the prop
+  onFormSubmit?: (formData: Record<string, any>) => void;
   isConnected: boolean
   isBotTyping: boolean
   onToggleSidebar: () => void;
@@ -70,13 +70,14 @@ export const ChatWindow = ({ messages, onPromptClick, onFormSubmit, isConnected,
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden"
+            className="md:hidden" // Only shows on screens smaller than medium
             onClick={onToggleSidebar}
           >
             <Menu className="h-5 w-5" />
           </Button>
 
-          <h2 className="text-xl font-semibold text-primary">SAP Assistant</h2>
+          {/* --- MODIFIED: Title is smaller on mobile, larger on desktop --- */}
+          <h2 className="text-lg md:text-xl font-semibold text-primary">SAP Assistant</h2>
           <Badge
             variant={isConnected ? "default" : "destructive"}
             className={isConnected ? "bg-green-500 hover:bg-green-500/90 text-white" : ""}
@@ -86,42 +87,47 @@ export const ChatWindow = ({ messages, onPromptClick, onFormSubmit, isConnected,
         </div>
 
         <div className="flex items-center gap-3">
-          <p className="text-sm text-muted-foreground hidden sm:block">Made by Ishaan Bhatt</p>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <a href="https://github.com/IshaanBhatt23" target="_blank" rel="noopener noreferrer">
-                  <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
-                    <Github className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                </a>
-              </TooltipTrigger>
-              <TooltipContent><p>GitHub</p></TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <a href="https://www.linkedin.com/in/ishaan-bhatt-110a93256/" target="_blank" rel="noopener noreferrer">
-                  <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
-                    <Linkedin className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                </a>
-              </TooltipTrigger>
-              <TooltipContent><p>LinkedIn</p></TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <a href="https://personal-portfolio-puce-delta-61.vercel.app/" target="_blank" rel="noopener noreferrer">
-                  <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
-                    <Globe className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                </a>
-              </TooltipTrigger>
-              <TooltipContent><p>Portfolio</p></TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          {/* --- MODIFIED: This entire div is now hidden on mobile (screens < md) --- */}
+          <div className="hidden md:flex items-center gap-3">
+            <p className="text-sm text-muted-foreground">Made by Ishaan Bhatt</p>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <a href="https://github.com/IshaanBhatt23" target="_blank" rel="noopener noreferrer">
+                    <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
+                      <Github className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </a>
+                </TooltipTrigger>
+                <TooltipContent><p>GitHub</p></TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <a href="https://www.linkedin.com/in/ishaan-bhatt-110a93256/" target="_blank" rel="noopener noreferrer">
+                    <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
+                      <Linkedin className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </a>
+                </TooltipTrigger>
+                <TooltipContent><p>LinkedIn</p></TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <a href="https://personal-portfolio-puce-delta-61.vercel.app/" target="_blank" rel="noopener noreferrer">
+                    <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
+                      <Globe className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </a>
+                </TooltipTrigger>
+                <TooltipContent><p>Portfolio</p></TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
 
-          <div className="h-6 w-px bg-border mx-2"></div>
-
+            {/* --- MODIFIED: This divider is also hidden on mobile --- */}
+            <div className="h-6 w-px bg-border mx-2"></div>
+          </div>
+          
+          {/* --- This Button is outside the hidden div, so it's ALWAYS visible --- */}
           <Button
             variant="ghost"
             size="icon"
@@ -149,7 +155,6 @@ export const ChatWindow = ({ messages, onPromptClick, onFormSubmit, isConnected,
         {messages.length === 0 && !isBotTyping ? (
           <WelcomeScreen onPromptClick={onPromptClick} />
         ) : (
-          // --- 👇 STEP 2: PASS THE PROP DOWN ---
           messages.map((message) => (
             <MessageBubble key={message.id} message={message} onFormSubmit={onFormSubmit} />
           ))

@@ -53,7 +53,7 @@ const Index = () => {
     };
 
     addMessageToSession(currentSessionId, userMsg);
-    setIsBotTyping(true);
+    setIsBotTyping(true); 
 
     try {
       const messageHistory = activeSession?.messages.map(msg => ({
@@ -73,15 +73,12 @@ const Index = () => {
 
       const botResponseData: MessageData = await response.json();
 
-      // --- 👇 THIS IS THE UPGRADE ---
-      // The backend now sends the full data object, which we can use directly.
       const botMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        data: botResponseData, // Use the data directly (could be text or a form type)
+        data: botResponseData,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
-      // --- END OF UPGRADE ---
 
       addMessageToSession(currentSessionId, botMsg);
 
@@ -98,13 +95,12 @@ const Index = () => {
         variant: "destructive",
       });
     } finally {
-      setIsBotTyping(false);
+      setIsBotTyping(false); 
     }
   };
 
-  // --- 👇 A NEW FUNCTION TO HANDLE THE FORM SUBMISSION ---
   const handleFormSubmit = async (formData: Record<string, any>) => {
-    setIsBotTyping(true);
+    setIsBotTyping(true); 
     try {
       const response = await fetch('http://localhost:3001/api/submit-leave', {
         method: 'POST',
@@ -119,7 +115,7 @@ const Index = () => {
       const confirmationMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        data: confirmationData, // Expects a { type: 'text', content: '...' } response
+        data: confirmationData, 
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
       
@@ -134,7 +130,7 @@ const Index = () => {
         variant: "destructive",
       });
     } finally {
-      setIsBotTyping(false);
+      setIsBotTyping(false); 
     }
   };
 
@@ -183,7 +179,6 @@ const Index = () => {
       )}
 
       <div className="flex-1 flex flex-col">
-        {/* --- 👇 WE PASS THE NEW SUBMIT FUNCTION TO THE CHAT WINDOW --- */}
         <ChatWindow
           messages={activeSession?.messages || []}
           onPromptClick={handleSendMessage}
@@ -195,6 +190,7 @@ const Index = () => {
         <ChatInput
           onSendMessage={handleSendMessage}
           onFileUpload={handleFileUpload}
+          disabled={isBotTyping} 
           activeSessionId={activeSessionId ?? undefined}
         />
       </div>
