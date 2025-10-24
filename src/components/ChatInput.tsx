@@ -7,28 +7,27 @@ interface ChatInputProps {
   onSendMessage: (message: string) => void;
   onFileUpload: (file: File) => void;
   disabled?: boolean;
-  activeSessionId?: string; // 👈 added
+  activeSessionId?: string;
 }
 
 export const ChatInput = ({
   onSendMessage,
   onFileUpload,
   disabled,
-  activeSessionId, // 👈 added
+  activeSessionId,
 }: ChatInputProps) => {
   const [message, setMessage] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // 🔹 Focus whenever the active chat session changes (like after clear all or new chat)
   useEffect(() => {
     inputRef.current?.focus();
-  }, [activeSessionId]); // 👈 dependency added
+  }, [activeSessionId]);
 
   const handleSend = () => {
     if (message.trim() && !disabled) {
       onSendMessage(message);
       setMessage("");
-      inputRef.current?.focus(); // Keep focus after sending
+      inputRef.current?.focus();
     }
   };
 
@@ -48,8 +47,10 @@ export const ChatInput = ({
   };
 
   return (
-    <div className="border-t border-border bg-background px-4 py-6 sm:py-8">
-      <div className="relative flex items-center gap-4">
+    // --- MODIFIED: Reduced vertical padding on mobile (py-3) ---
+    <div className="border-t border-border bg-background px-4 py-3 md:py-8">
+      {/* --- MODIFIED: Reduced gap on mobile (gap-2) --- */}
+      <div className="relative flex items-center gap-2 md:gap-4">
         <label htmlFor="file-upload" className="cursor-pointer">
           <Button
             type="button"
@@ -57,9 +58,11 @@ export const ChatInput = ({
             size="icon"
             disabled={disabled}
             onClick={() => document.getElementById("file-upload")?.click()}
-            className="h-14 w-14 flex-shrink-0"
+            // --- MODIFIED: Smaller button on mobile ---
+            className="h-10 w-10 md:h-14 md:w-14 flex-shrink-0"
           >
-            <Paperclip className="h-7 w-7 text-muted-foreground" />
+            {/* --- MODIFIED: Smaller icon on mobile --- */}
+            <Paperclip className="h-5 w-5 md:h-7 md:w-7 text-muted-foreground" />
           </Button>
           <input
             id="file-upload"
@@ -77,16 +80,19 @@ export const ChatInput = ({
           onKeyPress={handleKeyPress}
           placeholder="Ask about anything in SAP..."
           disabled={disabled}
-          className="flex-1 h-16 rounded-full bg-muted px-7 text-xl"
+          // --- MODIFIED: Smaller height, padding, text, and radius on mobile ---
+          className="flex-1 h-12 md:h-16 rounded-lg md:rounded-full bg-muted px-4 md:px-7 text-base md:text-xl"
         />
 
         <Button
           onClick={handleSend}
           disabled={!message.trim() || disabled}
           size="icon"
-          className="bg-accent hover:bg-accent/90 h-14 w-14 flex-shrink-0 rounded-full"
+          // --- MODIFIED: Smaller button on mobile ---
+          className="bg-accent hover:bg-accent/90 h-10 w-10 md:h-14 md:w-14 flex-shrink-0 rounded-full"
         >
-          <Send className="h-7 w-7" />
+          {/* --- MODIFIED: Smaller icon on mobile --- */}
+          <Send className="h-5 w-5 md:h-7 md:w-7" />
         </Button>
       </div>
     </div>
