@@ -14,21 +14,12 @@
   "author": "Ishaan Bhatt",
   "license": "ISC",
   "dependencies": {
-    "axios": "^1.7.2",  
+    "axios": "^1.7.2",
     "cors": "^2.8.5",
-    "express": "^4.19.2", 
-    "fuse.js": "^7.0.0"   
+    "express": "^4.19.2",
+    "fuse.js": "^7.0.0"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1" 
+    "concurrently": "^9.2.1"
   }
 }
-```
-
-**Action for you:**
-1.  **Replace** the content of your `backend/package.json` file with the code above.
-2.  **Save** the file.
-3.  **Important:** Since we changed dependencies, run `npm install` in your `backend` folder in the terminal to make sure everything is up-to-date locally:
-    ```bash
-    cd C:\Users\inb20\OneDrive\Desktop\sap-chatflow\backend
-    npm install
