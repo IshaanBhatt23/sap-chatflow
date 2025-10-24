@@ -340,8 +340,6 @@ app.post('/api/submit-leave', (req, res) => {
     res.status(500).json({ error: 'Failed to save the leave application.' });
   }
 });
-
-// --- Server Start for Render ---
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ SAP Assistant Backend is running on port ${PORT}`);
