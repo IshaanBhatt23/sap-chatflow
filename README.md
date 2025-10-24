@@ -102,8 +102,6 @@ npm run dev
 yarn dev
 ```
 
-The frontend (chat application) will typically be available at:  
-👉 **http://localhost:3000**
 
 ---
 
