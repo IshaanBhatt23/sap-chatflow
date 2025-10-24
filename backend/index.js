@@ -95,7 +95,7 @@ async function callGroqLLM(systemPrompt, userPrompt, isJsonMode = false) {
 
   const payload = {
     // --- 🔽 THIS IS THE ONLY CHANGE 🔽 ---
-    model: 'llama3-70b-8192', // Use the larger, supported Llama 3 model
+    model: 'llama3-groq-70b-8192-tool-use-preview', // Use the larger, supported Llama 3 model
     // --- 🔼 ---
     messages: messages,
     temperature: 0.7,
