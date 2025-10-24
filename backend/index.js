@@ -55,7 +55,8 @@ const knowledgeFuse = new Fuse(knowledgeData, { keys: ['term', 'definition'], in
 
 // --- Tools array with refined descriptions ---
 const tools = [
-  { name: 'get_sap_definition', description: "Use this tool ONLY to define a specific SAP term, concept, T-code (like 'fb60', 'MIRO'), or abbreviation asked by the user (e.g., 'What is fb60?', 'Define S/4HANA'). Extract the specific term.", parameters: { "term": "The specific SAP term, concept, T-code, or abbreviation the user is asking the definition for." } },
+  // --- MODIFIED Description ---
+  { name: 'get_sap_definition', description: "Use this tool ONLY to define a specific SAP term, concept, T-code (like 'fb60', 'MIRO', 'fb 60'), or abbreviation asked by the user (e.g., 'What is fb60?', 'Define S/4HANA'). Extract the specific term, ignoring minor typos or spaces.", parameters: { "term": "The specific SAP term, concept, T-code, or abbreviation the user is asking the definition for." } },
   { name: 'show_leave_application_form', description: 'Use this tool when the user explicitly asks to apply for leave, request time off, or wants a leave form.', parameters: {} },
   { name: 'query_inventory', description: "Use this tool when the user asks about stock levels or asks if a specific material/item is in stock (e.g., 'check stock', 'do we have bearings?'). **You MUST extract the material name/ID if provided**.", parameters: { "material_id": "(Optional, but attempt extraction) The specific ID or name of the material the user mentioned, e.g., 'PUMP-1001' or 'bearings'", "comparison": "(Optional) The filter operator, such as 'less than' or 'greater than'", "quantity": "(Optional) The numeric value to compare the stock level against, e.g., 1000" } },
   { name: 'get_sales_orders', description: 'Use this tool when the user asks to see or find sales orders. Can be filtered by customer name or status (e.g., "open", "in process"). Extract filters if provided.', parameters: { "customer": "(Optional) The name of the customer to filter by.", "status": "(Optional) The status of the orders to filter by (e.g., 'Open')." } },
@@ -96,7 +97,7 @@ async function callGroqLLM(systemPrompt, userPrompt, isJsonMode = false) {
   const payload = {
     model: 'llama-3.1-8b-instant',
     messages: messages,
-    temperature: 0.4, // Slightly increased temperature for more natural language
+    temperature: 0.4,
   };
 
   if (isJsonMode) {
@@ -191,25 +192,29 @@ app.post('/api/chat', async (req, res) => {
 
       switch (decision.tool_name) {
         case 'get_sap_definition': {
-          const searchTerm = parameters.term;
+          let searchTerm = parameters.term; // Get the term extracted by the LLM
           if (!searchTerm) {
              console.warn("Tool 'get_sap_definition' called without 'term'.");
              toolResult = { type: 'text', content: "Please tell me which SAP term you want defined." };
              break;
           }
-          console.log(`--> Searching KB for: "${searchTerm}"`);
-          const kbSearchResults = knowledgeFuse.search(searchTerm);
+
+          // --- 🔽 NEW: Normalize the search term 🔽 ---
+          const normalizedSearchTerm = searchTerm.replace(/\s+/g, '').toUpperCase();
+          console.log(`--> Original search term: "${searchTerm}", Normalized: "${normalizedSearchTerm}"`);
+          // --- 🔼 END NEW 🔼 ---
+
+          // --- Search using the NORMALIZED term ---
+          const kbSearchResults = knowledgeFuse.search(normalizedSearchTerm);
           const topScore = kbSearchResults[0]?.score;
-          console.log(`--> KB Search Results (Top Score: ${topScore}):`, kbSearchResults.slice(0, 3));
+          console.log(`--> KB Search Results for "${normalizedSearchTerm}" (Top Score: ${topScore}):`, kbSearchResults.slice(0, 3));
           const goodKbMatch = kbSearchResults.length > 0 && topScore < 0.45;
 
           if (goodKbMatch) {
             console.log('--> Found KB match:', kbSearchResults[0].item.term, `(Score: ${topScore})`);
             const definition = kbSearchResults[0].item.definition;
-            // --- MODIFIED: Added instruction for analogy ---
             const rephrasePrompt = `A user asked about "${searchTerm}". Explain the following definition in a friendly, human-like way. If possible, include a simple analogy to make it easier to understand: "${definition}". Just provide the final text explanation.`;
             const rephrasedContentResult = await callGroqLLM('You are a helpful SAP assistant explaining concepts simply.', rephrasePrompt);
-            // --- End modification ---
             if (rephrasedContentResult && !rephrasedContentResult.error) {
                  toolResult = { type: 'text', content: rephrasedContentResult };
             } else {
@@ -217,11 +222,9 @@ app.post('/api/chat', async (req, res) => {
                  toolResult = { type: 'text', content: definition }; // Fallback to raw definition
             }
           } else {
-            console.log(`--> No good KB match found for "${searchTerm}". Asking Groq fallback.`);
-            // --- MODIFIED: Added instruction for analogy ---
+            console.log(`--> No good KB match found for "${normalizedSearchTerm}". Asking Groq fallback.`);
             const fallbackPrompt = `The user asked for a definition of the SAP term "${searchTerm}". It wasn't found in our specific knowledge base. Provide a concise, friendly, human-like definition ONLY if you are confident you know what it means in an SAP context. Try to include a simple analogy if it helps clarify. If unsure, respond with: "I couldn't find a specific definition for '${searchTerm}' in my knowledge base. Could you provide more context or check the spelling?"`;
             const fallbackContentResult = await callGroqLLM('You are a helpful SAP assistant explaining concepts simply.', fallbackPrompt);
-            // --- End modification ---
              if (fallbackContentResult && !fallbackContentResult.error) {
                 toolResult = { type: 'text', content: fallbackContentResult };
              } else {
