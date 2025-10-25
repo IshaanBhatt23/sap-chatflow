@@ -77,7 +77,7 @@ export const ChatWindow = ({ messages, onPromptClick, onFormSubmit, isConnected,
           </Button>
 
           {/* --- MODIFIED: Title is smaller on mobile, larger on desktop --- */}
-          <h2 className="text-lg md:text-xl font-semibold text-primary">SAP Assistant</h2>
+          <h2 className="text-lg md:text-xl font-semibold text-primary">SAP ChatFlow</h2>
           <Badge
             variant={isConnected ? "default" : "destructive"}
             className={isConnected ? "bg-green-500 hover:bg-green-500/90 text-white" : ""}
