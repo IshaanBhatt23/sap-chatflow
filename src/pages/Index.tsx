@@ -7,9 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useChatSessions } from "@/hooks/useChatSessions";
 
-// --- 🔽 Define the Render URL as a constant 🔽 ---
 const BACKEND_URL = "https://sap-assistant-backend.onrender.com";
-// --- 🔼 ---
 
 const Index = () => {
   const { toast } = useToast();
@@ -28,7 +26,7 @@ const Index = () => {
     addMessageToSession,
   } = useChatSessions();
 
-  const [isConnected] = useState(true); // You might want to add actual connection checks later
+  const [isConnected] = useState(true);
   const [isBotTyping, setIsBotTyping] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -60,37 +58,29 @@ const Index = () => {
     setIsBotTyping(true);
 
     try {
-      // Create message history for the backend, making sure 'text' exists
       const messageHistory = activeSession?.messages
         .map(msg => ({
           sender: msg.role,
-          // Safely access content, assuming text type for now
           text: (msg.data as { type?: string; content?: string })?.content ?? '',
         }))
-        // Add the new user message to the history being sent
         .concat([{ sender: 'user', text: text }])
-         || [{ sender: 'user', text: text }]; // Ensure history isn't empty
+         || [{ sender: 'user', text: text }];
 
-
-      // --- 🔽 Use the Render URL 🔽 ---
       const response = await fetch(`${BACKEND_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messageHistory }),
         signal: controller.signal,
       });
-      // --- 🔼 ---
 
       if (!response.ok) {
-         // Try to get error message from backend response
          let errorMsg = `API error: ${response.statusText}`;
          try {
            const errorData = await response.json();
-           errorMsg = errorData.error || errorMsg; // Use backend error if available
+           errorMsg = errorData.error || errorMsg;
          } catch (e) { /* Ignore parsing error */ }
          throw new Error(errorMsg);
       }
-
 
       const botResponseData: MessageData = await response.json();
 
@@ -106,29 +96,25 @@ const Index = () => {
     } catch (error: any) {
       if (error.name === 'AbortError') {
         console.log('Fetch aborted by user action.');
-         // Optionally set isBotTyping false here if you aborted
-         // setIsBotTyping(false);
-        return; // Don't show error toast if aborted
+        return;
       }
 
       console.error("Failed to get bot response:", error);
       toast({
         title: "Error",
-        description: error.message || "Could not connect to the assistant. Please try again.", // Show specific error
+        description: error.message || "Could not connect to the assistant. Please try again.",
         variant: "destructive",
       });
     } finally {
       setIsBotTyping(false);
-       abortControllerRef.current = null; // Clear the controller ref
+       abortControllerRef.current = null;
     }
   };
 
   const handleFormSubmit = async (formData: Record<string, any>) => {
     setIsBotTyping(true);
     try {
-      // --- 🔽 Use the Render URL 🔽 ---
       const response = await fetch(`${BACKEND_URL}/api/submit-leave`, {
-      // --- 🔼 ---
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -142,7 +128,6 @@ const Index = () => {
          } catch (e) { /* Ignore */ }
          throw new Error(errorMsg);
        }
-
 
       const confirmationData = await response.json();
 
@@ -169,19 +154,17 @@ const Index = () => {
   };
 
   useEffect(() => {
-    // Cleanup function to abort fetch on component unmount or session change
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         console.log("Aborting fetch on cleanup");
       }
     };
-  }, [activeSessionId]); // Re-run effect if session changes
-
-   // --- Removed handleFileUpload ---
+  }, [activeSessionId]);
 
   return (
     <div className="relative flex h-screen w-full overflow-hidden">
+      {/* Sidebar */}
       <div
         className={cn(
           "absolute top-0 left-0 h-full w-80 border-r border-border bg-background transition-transform duration-300 ease-in-out md:relative md:translate-x-0 z-20",
@@ -206,6 +189,7 @@ const Index = () => {
         />
       </div>
 
+      {/* Overlay for mobile sidebar */}
       {isSidebarOpen && (
         <div
           onClick={() => setIsSidebarOpen(false)}
@@ -213,21 +197,28 @@ const Index = () => {
         />
       )}
 
-      <div className="flex-1 flex flex-col">
-        <ChatWindow
-          messages={activeSession?.messages || []}
-          onPromptClick={handleSendMessage}
-          onFormSubmit={handleFormSubmit}
-          isConnected={isConnected}
-          isBotTyping={isBotTyping}
-          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
-        />
-        {/* --- Removed onFileUpload prop --- */}
-        <ChatInput
-          onSendMessage={handleSendMessage}
-          disabled={isBotTyping}
-          activeSessionId={activeSessionId ?? undefined}
-        />
+      {/* Main chat area - FIXED STRUCTURE */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        {/* ChatWindow takes available space and scrolls internally */}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <ChatWindow
+            messages={activeSession?.messages || []}
+            onPromptClick={handleSendMessage}
+            onFormSubmit={handleFormSubmit}
+            isConnected={isConnected}
+            isBotTyping={isBotTyping}
+            onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+          />
+        </div>
+        
+        {/* ChatInput is fixed at bottom */}
+        <div className="flex-shrink-0">
+          <ChatInput
+            onSendMessage={handleSendMessage}
+            disabled={isBotTyping}
+            activeSessionId={activeSessionId ?? undefined}
+          />
+        </div>
       </div>
     </div>
   );
