@@ -163,7 +163,7 @@ const Index = () => {
   }, [activeSessionId]);
 
   return (
-    <div className="relative flex h-screen w-full overflow-hidden">
+    <div className="relative flex h-[100dvh] w-full overflow-hidden">
       {/* Sidebar */}
       <div
         className={cn(
@@ -198,7 +198,7 @@ const Index = () => {
       )}
 
       {/* Main chat area - FIXED STRUCTURE */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden pb-safe">
         {/* ChatWindow takes available space and scrolls internally */}
         <div className="flex-1 min-h-0 overflow-hidden">
           <ChatWindow
@@ -212,7 +212,7 @@ const Index = () => {
         </div>
         
         {/* ChatInput is fixed at bottom */}
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 pb-2 md:pb-0">
           <ChatInput
             onSendMessage={handleSendMessage}
             disabled={isBotTyping}
