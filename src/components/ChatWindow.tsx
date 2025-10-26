@@ -62,33 +62,33 @@ export const ChatWindow = ({ messages, onPromptClick, onFormSubmit, isConnected,
   const { theme, setTheme } = useTheme();
 
   return (
-    // This root div is now correctly structured for flexbox layout
-    <div className="flex flex-col flex-1 min-h-0 bg-background">
-      {/* --- MODIFIED: Reduced vertical padding on mobile (py-3) --- */}
-      <div className="flex-shrink-0 border-b border-border px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
+    <div className="flex flex-col h-full w-full bg-background">
+      {/* Header - Compact on mobile */}
+      <div className="flex-shrink-0 border-b border-border px-3 md:px-6 py-2 md:py-4 flex items-center justify-between">
         <div className="flex items-center gap-2 md:gap-3">
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden" // Only shows on screens smaller than medium
+            className="md:hidden h-8 w-8"
             onClick={onToggleSidebar}
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-4 w-4" />
           </Button>
 
-          {/* --- MODIFIED: Title is smaller on mobile, larger on desktop --- */}
-          <h2 className="text-lg md:text-xl font-semibold text-primary">SAP ChatFlow</h2>
+          <h2 className="text-base md:text-xl font-semibold text-primary">SAP ChatFlow</h2>
           <Badge
             variant={isConnected ? "default" : "destructive"}
-            className={isConnected ? "bg-green-500 hover:bg-green-500/90 text-white" : ""}
+            className={cn(
+              "text-xs md:text-sm",
+              isConnected ? "bg-green-500 hover:bg-green-500/90 text-white" : ""
+            )}
           >
             {isConnected ? "Connected" : "Disconnected"}
           </Badge>
         </div>
 
-        {/* --- MODIFIED: This outer div now handles the theme button visibility --- */}
-        <div className="flex items-center gap-3">
-          {/* --- MODIFIED: This entire div is now hidden on mobile (screens < md) --- */}
+        <div className="flex items-center gap-2 md:gap-3">
+          {/* Desktop-only social links */}
           <div className="hidden md:flex items-center gap-3">
             <p className="text-sm text-muted-foreground">Made by Ishaan Bhatt</p>
             <TooltipProvider>
@@ -124,11 +124,10 @@ export const ChatWindow = ({ messages, onPromptClick, onFormSubmit, isConnected,
               </Tooltip>
             </TooltipProvider>
 
-            {/* --- MODIFIED: This divider is also hidden on mobile --- */}
             <div className="h-6 w-px bg-border mx-2"></div>
           </div>
           
-          {/* --- This Button is outside the hidden div, so it's ALWAYS visible --- */}
+          {/* Theme toggle - always visible */}
           <Button
             variant="ghost"
             size="icon"
@@ -139,11 +138,11 @@ export const ChatWindow = ({ messages, onPromptClick, onFormSubmit, isConnected,
             <AnimatePresence mode="wait" initial={false}>
               {theme === "light" ? (
                 <motion.span key="sun" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.2 }}>
-                  <Sun className="h-5 w-5" />
+                  <Sun className="h-4 w-4 md:h-5 md:w-5" />
                 </motion.span>
               ) : (
                 <motion.span key="moon" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.2 }}>
-                  <Moon className="h-5 w-5" />
+                  <Moon className="h-4 w-4 md:h-5 md:w-5" />
                 </motion.span>
               )}
             </AnimatePresence>
@@ -151,18 +150,12 @@ export const ChatWindow = ({ messages, onPromptClick, onFormSubmit, isConnected,
         </div>
       </div>
       
-      {/* --- 
-        THIS IS THE MAIN FIX 
-        This div is the main scrolling container.
-        We use cn() to conditionally apply padding:
-        - "p-6" (default padding) when messages.length > 0
-        - "p-0" (no padding) when messages.length === 0 (so WelcomeScreen fits)
-      --- */}
+      {/* Main scrolling content area - Full height on mobile */}
       <div 
         ref={scrollViewportRef} 
         className={cn(
-          "flex-1 overflow-y-auto",
-          messages.length > 0 ? "p-6" : "p-0"
+          "flex-1 overflow-y-auto overflow-x-hidden",
+          messages.length > 0 ? "p-3 md:p-6" : "p-0"
         )}
       >
         {messages.length === 0 && !isBotTyping ? (
