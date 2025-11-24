@@ -39,6 +39,29 @@ function readJsonSafely(filePath, defaultValue = []) {
   }
 }
 
+// --- Helper: clean AI text (remove outer quotes & trim) ---
+function cleanAiText(text) {
+  if (typeof text !== "string") return text;
+
+  let t = text.trim();
+
+  // If the whole thing is wrapped in matching straight quotes "..." or '...'
+  if (
+    (t.startsWith('"') && t.endsWith('"')) ||
+    (t.startsWith("'") && t.endsWith("'"))
+  ) {
+    t = t.slice(1, -1).trim();
+  }
+
+  // Extra safety: strip any leading OR trailing unicode/straight quotes
+  t = t
+    .replace(/^[“”"'`]+/, "")   // remove from start
+    .replace(/[“”"'`]+$/, "")   // remove from end
+    .trim();
+
+  return t;
+}
+
 // --- Load Data ---
 const stockData = readJsonSafely(stockDbPath, {});
 const stockList = Object.entries(stockData).map(([id, data]) => ({ Material: id, ...data }));
@@ -70,7 +93,7 @@ function extractMultipleItems(itemString) {
 const tools = [
   { name: 'get_sap_definition', description: "Use this tool ONLY to define or explain a specific SAP term, concept, T-code (like 'fb60'), process, or abbreviation (e.g., 'What is fb60?', 'Define S/4HANA', 'process for sales order', 'how to enter vendor invoice'). Extract the core term/topic.", parameters: { "term": "The specific SAP term, topic, process, T-code, or abbreviation the user is asking about." } },
   { name: 'show_leave_application_form', description: 'Use this tool when the user explicitly asks to apply for leave, request time off, or wants a leave form.', parameters: {} },
-  { name: 'query_inventory', description: "Use this tool ONLY when the user asks about stock levels OR asks if specific materials/items are in stock (e.g., 'check stock', 'do we have bearings?', 'stock of pump-1001', 'pumps and bearings'). **CRITICAL: You MUST extract the specific material name(s) or ID(s)** mentioned by the user and put them in the 'material_id' parameter. If multiple items are mentioned (like 'pumps and bearings'), include ALL items separated by 'and' or commas in the 'material_id'. Do NOT use for general questions.", parameters: { "material_id": "(REQUIRED if mentioned) The exact name(s) or ID(s) of the material(s) the user asked about. For multiple items, include all separated by 'and' or commas (e.g., 'PUMP-1001', 'bearings', 'pumps and bearings', 'bearings, pumps, valves'). DO NOT omit this if the user mentions item(s).", "comparison": "(Optional) The filter operator ('less than' or 'greater than')", "quantity": "(Optional) The numeric value for comparison" } },
+  { name: 'query_inventory', description: "Use this tool ONLY when the user asks about stock levels OR asks if specific materials/items are in stock (e.g., 'check stock', 'do we have bearings?', 'stock of pump-1001', 'pumps and bearings'). **CRITICAL: You MUST extract the specific material name(s) or ID(s)** mentioned by the user and put them in the 'material_id' parameter. If multiple items are mentioned (like 'pumps and bearings'), include ALL items separated by 'and' or commas in the 'material_id'. Do NOT use for general questions.", parameters: { "material_id": "(REQUIRED if mentioned) The exact name(s) or ID(s) of the material(s) the user asked about. For multiple materials, include all separated by 'and' or commas (e.g., 'PUMP-1001', 'bearings', 'pumps and bearings', 'bearings, pumps, valves'). DO NOT omit this if the user mentions item(s).", "comparison": "(Optional) The filter operator ('less than' or 'greater than')", "quantity": "(Optional) The numeric value for comparison" } },
   { name: 'get_sales_orders', description: 'Use this tool ONLY to find/view EXISTING sales orders. Filter by customer, material(s), or status if provided. For multiple materials, include all separated by delimiters. Do NOT use for "how to", "process", or definition questions.', parameters: { "customer": "(Optional) The customer name to filter by.", "material": "(Optional) The material name(s) or ID(s) to filter by. For multiple materials, include all separated by 'and' or commas (e.g., 'pumps and bearings').", "status": "(Optional) The order status to filter by (e.g., 'Open')." } },
   { name: 'get_purchase_orders', description: 'Use this tool ONLY to find/view EXISTING purchase orders. Filter by vendor, material(s), or status if provided. For multiple materials, include all separated by delimiters. Do NOT use for "how to", "process", or definition questions.', parameters: { "vendor": "(Optional) The vendor name to filter by.", "material": "(Optional) The material name(s) or ID(s) to filter by. For multiple materials, include all separated by 'and' or commas (e.g., 'pumps and bearings').", "status": "(Optional) The order status to filter by (e.g., 'Ordered')." } }
 ];
@@ -139,7 +162,7 @@ async function callGroqLLM(systemPrompt, userPrompt, isJsonMode = false) {
     const content = response.data?.choices?.[0]?.message?.content;
     if (!content) {
       console.error("Unexpected response structure from Groq:", response.data);
-       return { error: true, message: "Invalid response structure from AI.", status: 500 };
+      return { error: true, message: "Invalid response structure from AI.", status: 500 };
     }
     return content;
 
@@ -154,12 +177,12 @@ async function callGroqLLM(systemPrompt, userPrompt, isJsonMode = false) {
       message = error.response.data?.error?.message || message;
     } else if (error.request) {
       console.error("Request:", error.request);
-       message = "No response received from AI service.";
+      message = "No response received from AI service.";
     } else {
       console.error('Error Message:', error.message);
-       message = error.message;
+      message = error.message;
     }
-     return { error: true, message: message, status: status };
+    return { error: true, message: message, status: status };
   }
 }
 // --- END HELPER FUNCTION ---
@@ -197,11 +220,14 @@ app.post('/api/chat', async (req, res) => {
     } catch (parseError) {
       console.error("Failed to parse JSON decision from Groq:", decisionString, parseError);
       if (typeof decisionString === 'string' && !decisionString.trim().startsWith('{')) {
-         console.log("Decision wasn't JSON, using as text fallback.");
-         return res.json({ type: 'text', content: decisionString });
+        console.log("Decision wasn't JSON, using as text fallback.");
+        return res.json({
+          type: 'text',
+          content: cleanAiText(decisionString),
+        });
       }
-       console.error("Decision string was not valid JSON and not plain text.");
-       return res.status(500).json({ error: "Failed to interpret AI decision." });
+      console.error("Decision string was not valid JSON and not plain text.");
+      return res.status(500).json({ error: "Failed to interpret AI decision." });
     }
 
     // --- STEP 2: Execute the decision ---
@@ -214,9 +240,9 @@ app.post('/api/chat', async (req, res) => {
         case 'get_sap_definition': {
           let searchTerm = parameters.term;
           if (!searchTerm) {
-             console.warn("Tool 'get_sap_definition' called without 'term'.");
-             toolResult = { type: 'text', content: "Please tell me which SAP term or process you want explained." };
-             break;
+            console.warn("Tool 'get_sap_definition' called without 'term'.");
+            toolResult = { type: 'text', content: "Please tell me which SAP term or process you want explained." };
+            break;
           }
 
           console.log(`--> Searching KB for: "${searchTerm}"`);
@@ -329,7 +355,7 @@ Be honest and helpful!`;
           const finalResult = await callGroqLLM(llmSystemPrompt, llmUserPrompt);
 
           if (finalResult && !finalResult.error) {
-            toolResult = { type: 'text', content: finalResult };
+            toolResult = { type: 'text', content: cleanAiText(finalResult) };
           } else {
             console.error("Error getting final explanation from LLM:", finalResult?.message);
             toolResult = { type: 'text', content: `Sorry, I encountered an issue while trying to explain '${searchTerm}'. Please try again.` };
@@ -343,55 +369,55 @@ Be honest and helpful!`;
           break;
 
         case 'query_inventory': {
-           console.log("--> Querying inventory with params:", parameters);
+          console.log("--> Querying inventory with params:", parameters);
           let inventory = [];
           const materialSearchTerm = parameters.material_id;
           
           if (materialSearchTerm) {
-             console.log(`--> Filtering inventory by material(s): "${materialSearchTerm}"`);
+            console.log(`--> Filtering inventory by material(s): "${materialSearchTerm}"`);
              
-             // Extract multiple items
-             const items = extractMultipleItems(materialSearchTerm);
-             console.log(`--> Extracted ${items.length} item(s):`, items);
+            // Extract multiple items
+            const items = extractMultipleItems(materialSearchTerm);
+            console.log(`--> Extracted ${items.length} item(s):`, items);
              
-             // Search for each item and collect results
-             const allResults = new Map(); // Use Map to avoid duplicates by Material ID
+            // Search for each item and collect results
+            const allResults = new Map(); // Use Map to avoid duplicates by Material ID
              
-             for (const item of items) {
-               const searchResults = stockFuse.search(item);
-               searchResults.forEach(result => {
-                 if (!allResults.has(result.item.Material)) {
-                   allResults.set(result.item.Material, result.item);
-                 }
-               });
-             }
+            for (const item of items) {
+              const searchResults = stockFuse.search(item);
+              searchResults.forEach(result => {
+                if (!allResults.has(result.item.Material)) {
+                  allResults.set(result.item.Material, result.item);
+                }
+              });
+            }
              
-             inventory = Array.from(allResults.values());
-             console.log(`--> Found ${inventory.length} unique items across all searches.`);
+            inventory = Array.from(allResults.values());
+            console.log(`--> Found ${inventory.length} unique items across all searches.`);
           } else {
-             console.warn("--> Tool 'query_inventory' called without 'material_id'. Showing all stock as fallback.");
-             inventory = stockList;
+            console.warn("--> Tool 'query_inventory' called without 'material_id'. Showing all stock as fallback.");
+            inventory = stockList;
           }
 
           if (parameters.comparison && parameters.quantity) {
             const qty = parseInt(parameters.quantity, 10);
             const comparison = parameters.comparison.toLowerCase();
-             console.log(`--> Filtering inventory by quantity: ${comparison} ${qty}`);
+            console.log(`--> Filtering inventory by quantity: ${comparison} ${qty}`);
             if (!isNaN(qty)) {
-                const originalCount = inventory.length;
-                inventory = inventory.filter(item => {
-                  const itemStock = parseInt(item['Stock Level'], 10);
-                  if (isNaN(itemStock)) return false;
-                  if (comparison.includes('less') || comparison.includes('<')) return itemStock < qty;
-                  if (comparison.includes('more') || comparison.includes('greater') || comparison.includes('>')) return itemStock > qty;
-                  return false;
-                });
-                 console.log(`--> Filtered from ${originalCount} to ${inventory.length} items.`);
+              const originalCount = inventory.length;
+              inventory = inventory.filter(item => {
+                const itemStock = parseInt(item['Stock Level'], 10);
+                if (isNaN(itemStock)) return false;
+                if (comparison.includes('less') || comparison.includes('<')) return itemStock < qty;
+                if (comparison.includes('more') || comparison.includes('greater') || comparison.includes('>')) return itemStock > qty;
+                return false;
+              });
+              console.log(`--> Filtered from ${originalCount} to ${inventory.length} items.`);
             } else {
-               console.warn("--> Invalid quantity provided for filtering:", parameters.quantity);
+              console.warn("--> Invalid quantity provided for filtering:", parameters.quantity);
             }
           }
-           console.log(`--> Returning ${inventory.length} inventory items.`);
+          console.log(`--> Returning ${inventory.length} inventory items.`);
           toolResult = {
             type: 'table',
             tableColumns: ['Material', 'Description', 'Stock Level', 'Plant'],
@@ -401,48 +427,48 @@ Be honest and helpful!`;
         }
 
         case 'get_sales_orders': {
-           console.log("--> Getting sales orders with params:", parameters);
+          console.log("--> Getting sales orders with params:", parameters);
           let salesOrdersResults = salesOrderData;
           
           // Filter by customer if provided
           if (parameters.customer) {
-             console.log(`--> Filtering SO by customer: "${parameters.customer}"`);
+            console.log(`--> Filtering SO by customer: "${parameters.customer}"`);
             const searchResults = salesOrderFuse.search(parameters.customer);
             salesOrdersResults = searchResults.map(result => result.item);
           }
           
           // Filter by material(s) if provided
           if (parameters.material) {
-             console.log(`--> Filtering SO by material(s): "${parameters.material}"`);
+            console.log(`--> Filtering SO by material(s): "${parameters.material}"`);
              
-             // Extract multiple materials
-             const materials = extractMultipleItems(parameters.material);
-             console.log(`--> Extracted ${materials.length} material(s):`, materials);
+            // Extract multiple materials
+            const materials = extractMultipleItems(parameters.material);
+            console.log(`--> Extracted ${materials.length} material(s):`, materials);
              
-             // Search for each material
-             const allResults = new Map();
+            // Search for each material
+            const allResults = new Map();
              
-             for (const material of materials) {
-               const materialFuse = new Fuse(salesOrdersResults, { 
-                 keys: ['material'], 
-                 includeScore: true, 
-                 threshold: 0.4 
-               });
-               const searchResults = materialFuse.search(material);
-               searchResults.forEach(result => {
-                 if (!allResults.has(result.item.id)) {
-                   allResults.set(result.item.id, result.item);
-                 }
-               });
-             }
+            for (const material of materials) {
+              const materialFuse = new Fuse(salesOrdersResults, { 
+                keys: ['material'], 
+                includeScore: true, 
+                threshold: 0.4 
+              });
+              const searchResults = materialFuse.search(material);
+              searchResults.forEach(result => {
+                if (!allResults.has(result.item.id)) {
+                  allResults.set(result.item.id, result.item);
+                }
+              });
+            }
              
-             salesOrdersResults = Array.from(allResults.values());
-             console.log(`--> Found ${salesOrdersResults.length} orders with matching materials.`);
+            salesOrdersResults = Array.from(allResults.values());
+            console.log(`--> Found ${salesOrdersResults.length} orders with matching materials.`);
           }
           
           // Filter by status if provided
           if (parameters.status) {
-             console.log(`--> Filtering SO by status: "${parameters.status}"`);
+            console.log(`--> Filtering SO by status: "${parameters.status}"`);
             const statusFuse = new Fuse(salesOrdersResults, { keys: ['status'], includeScore: true, threshold: 0.4 });
             const statusSearchResults = statusFuse.search(parameters.status);
             salesOrdersResults = statusSearchResults.map(result => result.item);
@@ -452,7 +478,7 @@ Be honest and helpful!`;
             'ID': order.id, 'Customer': order.customer, 'Material': order.material,
             'Quantity': order.quantity, 'Status': order.status, 'Value': order.value
           }));
-           console.log(`--> Returning ${mappedData.length} sales orders.`);
+          console.log(`--> Returning ${mappedData.length} sales orders.`);
           toolResult = {
             type: 'table',
             tableColumns: ['ID', 'Customer', 'Material', 'Quantity', 'Status', 'Value'],
@@ -462,48 +488,48 @@ Be honest and helpful!`;
         }
 
         case 'get_purchase_orders': {
-           console.log("--> Getting purchase orders with params:", parameters);
+          console.log("--> Getting purchase orders with params:", parameters);
           let purchaseOrdersResults = purchaseOrderData;
           
           // Filter by vendor if provided
           if (parameters.vendor) {
-             console.log(`--> Filtering PO by vendor: "${parameters.vendor}"`);
+            console.log(`--> Filtering PO by vendor: "${parameters.vendor}"`);
             const searchResults = purchaseOrderFuse.search(parameters.vendor);
             purchaseOrdersResults = searchResults.map(result => result.item);
           }
           
           // Filter by material(s) if provided
           if (parameters.material) {
-             console.log(`--> Filtering PO by material(s): "${parameters.material}"`);
+            console.log(`--> Filtering PO by material(s): "${parameters.material}"`);
              
-             // Extract multiple materials
-             const materials = extractMultipleItems(parameters.material);
-             console.log(`--> Extracted ${materials.length} material(s):`, materials);
+            // Extract multiple materials
+            const materials = extractMultipleItems(parameters.material);
+            console.log(`--> Extracted ${materials.length} material(s):`, materials);
              
-             // Search for each material
-             const allResults = new Map();
+            // Search for each material
+            const allResults = new Map();
              
-             for (const material of materials) {
-               const materialFuse = new Fuse(purchaseOrdersResults, { 
-                 keys: ['material'], 
-                 includeScore: true, 
-                 threshold: 0.4 
-               });
-               const searchResults = materialFuse.search(material);
-               searchResults.forEach(result => {
-                 if (!allResults.has(result.item.id)) {
-                   allResults.set(result.item.id, result.item);
-                 }
-               });
-             }
+            for (const material of materials) {
+              const materialFuse = new Fuse(purchaseOrdersResults, { 
+                keys: ['material'], 
+                includeScore: true, 
+                threshold: 0.4 
+              });
+              const searchResults = materialFuse.search(material);
+              searchResults.forEach(result => {
+                if (!allResults.has(result.item.id)) {
+                  allResults.set(result.item.id, result.item);
+                }
+              });
+            }
              
-             purchaseOrdersResults = Array.from(allResults.values());
-             console.log(`--> Found ${purchaseOrdersResults.length} orders with matching materials.`);
+            purchaseOrdersResults = Array.from(allResults.values());
+            console.log(`--> Found ${purchaseOrdersResults.length} orders with matching materials.`);
           }
           
           // Filter by status if provided
           if (parameters.status) {
-             console.log(`--> Filtering PO by status: "${parameters.status}"`);
+            console.log(`--> Filtering PO by status: "${parameters.status}"`);
             const statusFuse = new Fuse(purchaseOrdersResults, { keys: ['status'], includeScore: true, threshold: 0.4 });
             const statusSearchResults = statusFuse.search(parameters.status);
             purchaseOrdersResults = statusSearchResults.map(result => result.item);
@@ -513,7 +539,7 @@ Be honest and helpful!`;
             'ID': order.id, 'Vendor': order.vendor, 'Material': order.material,
             'Quantity': order.quantity, 'Status': order.status, 'Value': order.value
           }));
-           console.log(`--> Returning ${poMappedData.length} purchase orders.`);
+          console.log(`--> Returning ${poMappedData.length} purchase orders.`);
           toolResult = {
             type: 'table',
             tableColumns: ['ID', 'Vendor', 'Material', 'Quantity', 'Status', 'Value'],
@@ -524,20 +550,22 @@ Be honest and helpful!`;
 
         default:
           console.warn(`--> Unhandled tool detected: ${decision.tool_name}`);
-           const fallbackTextPrompt = `The user said: "${originalUserQuery}". I decided to use a tool called '${decision.tool_name}' which isn't recognized. Ask the user to clarify or rephrase.`;
-           const fallbackResult = await callGroqLLM('You are a helpful SAP assistant.', fallbackTextPrompt);
-           const fallbackContent = fallbackResult && !fallbackResult.error ? fallbackResult : "Sorry, I couldn't process that request. Could you please rephrase?";
-           toolResult = { type: 'text', content: fallbackContent };
+          const fallbackTextPrompt = `The user said: "${originalUserQuery}". I decided to use a tool called '${decision.tool_name}' which isn't recognized. Ask the user to clarify or rephrase.`;
+          const fallbackResult = await callGroqLLM('You are a helpful SAP assistant.', fallbackTextPrompt);
+          const fallbackContent = fallbackResult && !fallbackResult.error ? fallbackResult : "Sorry, I couldn't process that request. Could you please rephrase?";
+          toolResult = { type: 'text', content: fallbackContent };
       }
       res.json(toolResult);
 
     } else if (decision.type === 'text') {
       console.log('==> AI decided to have a normal conversation.');
-      const contentToSend = decision.content || "Sorry, I couldn't generate a response.";
+      const contentToSend = cleanAiText(
+        decision.content || "Sorry, I couldn't generate a response."
+      );
       res.json({ type: 'text', content: contentToSend });
     } else {
-       console.error("==> Unexpected decision format received:", decision);
-       res.status(500).json({ error: 'Received an unexpected response format from the AI.' });
+      console.error("==> Unexpected decision format received:", decision);
+      res.status(500).json({ error: 'Received an unexpected response format from the AI.' });
     }
 
   } catch (error) {
@@ -550,20 +578,20 @@ Be honest and helpful!`;
 // --- submit-leave endpoint ---
 app.post('/api/submit-leave', (req, res) => {
   const newLeaveData = req.body;
-   console.log("--- Received leave submission ---", newLeaveData);
-   if (!newLeaveData || typeof newLeaveData !== 'object' || Object.keys(newLeaveData).length === 0) {
-     console.error("--> Invalid leave data received.");
+  console.log("--- Received leave submission ---", newLeaveData);
+  if (!newLeaveData || typeof newLeaveData !== 'object' || Object.keys(newLeaveData).length === 0) {
+    console.error("--> Invalid leave data received.");
     return res.status(400).json({ error: 'Invalid leave data provided.' });
   }
   try {
     let leaveApplications = readJsonSafely(leaveDbPath, []);
     if (!Array.isArray(leaveApplications)) {
-        console.error("--> Leave applications data is not an array. Resetting.");
-        leaveApplications = [];
+      console.error("--> Leave applications data is not an array. Resetting.");
+      leaveApplications = [];
     }
     const newEntry = { id: Date.now(), ...newLeaveData, status: 'Submitted' };
     leaveApplications.push(newEntry);
-     console.log("--> Writing new leave application to file.");
+    console.log("--> Writing new leave application to file.");
     fs.writeFileSync(leaveDbPath, JSON.stringify(leaveApplications, null, 2));
     console.log("--> Leave application saved successfully.");
     res.json({

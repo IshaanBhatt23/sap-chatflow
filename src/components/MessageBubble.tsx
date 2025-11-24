@@ -16,6 +16,28 @@ interface MessageBubbleProps {
   onFormSubmit?: (formData: Record<string, any>) => void;
 }
 
+// 🔹 Helper: clean leading/trailing quotes from AI text
+const cleanText = (text: string | undefined | null) => {
+  if (!text) return "";
+  let t = text.trim();
+
+  // If wrapped in matching straight quotes "..." or '...'
+  if (
+    (t.startsWith('"') && t.endsWith('"')) ||
+    (t.startsWith("'") && t.endsWith("'"))
+  ) {
+    t = t.slice(1, -1).trim();
+  }
+
+  // Extra safety: strip any leading/trailing unicode/straight quotes
+  t = t
+    .replace(/^[“”"'`]+/, "") // start
+    .replace(/[“”"'`]+$/, "") // end
+    .trim();
+
+  return t;
+};
+
 const LeaveApplicationForm = ({ onSubmit }: { onSubmit?: (data: any) => void }) => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [formData, setFormData] = useState({
@@ -28,11 +50,13 @@ const LeaveApplicationForm = ({ onSubmit }: { onSubmit?: (data: any) => void }) 
 
   const todayDate = new Date();
   const year = todayDate.getFullYear();
-  const month = String(todayDate.getMonth() + 1).padStart(2, '0');
-  const day = String(todayDate.getDate()).padStart(2, '0');
+  const month = String(todayDate.getMonth() + 1).padStart(2, "0");
+  const day = String(todayDate.getDate()).padStart(2, "0");
   const today = `${year}-${month}-${day}`;
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -41,14 +65,14 @@ const LeaveApplicationForm = ({ onSubmit }: { onSubmit?: (data: any) => void }) 
     e.preventDefault();
 
     if (new Date(formData.startDate) > new Date(formData.endDate)) {
-        setError("Start date cannot be after the end date.");
-        return;
+      setError("Start date cannot be after the end date.");
+      return;
     }
 
     if (onSubmit) {
-        setError(null);
-        onSubmit(formData);
-        setIsSubmitted(true);
+      setError(null);
+      onSubmit(formData);
+      setIsSubmitted(true);
     }
   };
 
@@ -94,7 +118,7 @@ const LeaveApplicationForm = ({ onSubmit }: { onSubmit?: (data: any) => void }) 
           />
         </div>
       </div>
-      
+
       {error && <p className="text-sm text-red-500">{error}</p>}
 
       <div className="space-y-2">
@@ -108,10 +132,10 @@ const LeaveApplicationForm = ({ onSubmit }: { onSubmit?: (data: any) => void }) 
           required
         />
       </div>
-      
+
       {!isSubmitted && (
         <Button type="submit" className="w-full mt-2">
-            Submit Application
+          Submit Application
         </Button>
       )}
     </form>
@@ -146,7 +170,7 @@ export const MessageBubble = ({ message, onFormSubmit }: MessageBubbleProps) => 
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
-    const textToCopy = message.data.content || "";
+    const textToCopy = cleanText(message.data.content || "");
     if (textToCopy) {
       navigator.clipboard.writeText(textToCopy).then(() => {
         setCopied(true);
@@ -166,21 +190,21 @@ export const MessageBubble = ({ message, onFormSubmit }: MessageBubbleProps) => 
         isUser ? "justify-end" : "justify-start"
       )}
     >
-      {isUser && message.data.type === 'text' && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleCopy}
-            className="h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity mr-2 flex-shrink-0"
-          >
-            {copied ? (
-              <Check className="h-4 w-4 text-green-500" />
-            ) : (
-              <Copy className="h-4 w-4 text-muted-foreground" />
-            )}
-          </Button>
+      {isUser && message.data.type === "text" && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleCopy}
+          className="h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity mr-2 flex-shrink-0"
+        >
+          {copied ? (
+            <Check className="h-4 w-4 text-green-500" />
+          ) : (
+            <Copy className="h-4 w-4 text-muted-foreground" />
+          )}
+        </Button>
       )}
-      
+
       <div
         className={cn(
           "relative max-w-[80%] rounded-lg px-4 pt-3 pb-2 break-words",
@@ -195,7 +219,7 @@ export const MessageBubble = ({ message, onFormSubmit }: MessageBubbleProps) => 
 
         {message.data.type === "text" && message.data.content && (
           <div className="prose prose-sm dark:prose-invert max-w-none">
-            <ReactMarkdown>{message.data.content}</ReactMarkdown>
+            <ReactMarkdown>{cleanText(message.data.content)}</ReactMarkdown>
           </div>
         )}
 
@@ -217,24 +241,21 @@ export const MessageBubble = ({ message, onFormSubmit }: MessageBubbleProps) => 
         </div>
       </div>
 
-      {/* --- 👇 THIS IS THE FIX --- */}
-      {/* We've moved the assistant's copy button outside the bubble */}
-      {/* to match the style of the user's copy button. */}
-      {!isUser && message.data.type === 'text' && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleCopy}
-            className="h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity ml-2 flex-shrink-0"
-          >
-            {copied ? (
-              <Check className="h-4 w-4 text-green-500" />
-            ) : (
-              <Copy className="h-4 w-4 text-muted-foreground" />
-            )}
-          </Button>
+      {/* Assistant copy button on the right */}
+      {!isUser && message.data.type === "text" && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleCopy}
+          className="h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity ml-2 flex-shrink-0"
+        >
+          {copied ? (
+            <Check className="h-4 w-4 text-green-500" />
+          ) : (
+            <Copy className="h-4 w-4 text-muted-foreground" />
+          )}
+        </Button>
       )}
-      {/* --- END OF FIX --- */}
     </motion.div>
   );
 };
