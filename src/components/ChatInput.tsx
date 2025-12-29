@@ -184,6 +184,7 @@ export const ChatInput = ({
             handleSend(text);
           }}
           onListeningChange={(listening) => setIsListening(listening)}
+          disabled={disabled} // <--- ADDED THIS LINE
         />
 
         <Button
@@ -198,5 +199,3 @@ export const ChatInput = ({
     </div>
   );
 };
-
-/*end*/

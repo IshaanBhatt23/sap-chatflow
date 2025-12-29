@@ -8,6 +8,8 @@ type MicButtonAdvancedProps = {
   onSend: (text: string) => void;
   // Inform parent when listening starts/stops (for waveform UI)
   onListeningChange?: (listening: boolean) => void;
+  // Disable interaction (e.g. when bot is typing)
+  disabled?: boolean;
 };
 
 const DOUBLE_TAP_DELAY = 350; // ms
@@ -16,6 +18,7 @@ const MicButtonAdvanced: React.FC<MicButtonAdvancedProps> = ({
   onTranscript,
   onSend,
   onListeningChange,
+  disabled,
 }) => {
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -86,6 +89,8 @@ const MicButtonAdvanced: React.FC<MicButtonAdvancedProps> = ({
 
   // PUSH-TO-TALK: hold to record
   const handlePressStart = () => {
+    if (disabled) return; // Block start if disabled
+
     const recognition = getRecognition();
     if (!recognition) return;
 
@@ -110,6 +115,8 @@ const MicButtonAdvanced: React.FC<MicButtonAdvancedProps> = ({
 
   // DOUBLE TAP TO SEND
   const handleClick = () => {
+    if (disabled) return; // Block click if disabled
+
     const now = Date.now();
 
     if (tapTime && now - tapTime < DOUBLE_TAP_DELAY) {
@@ -126,20 +133,25 @@ const MicButtonAdvanced: React.FC<MicButtonAdvancedProps> = ({
   return (
     <button
       type="button"
+      disabled={disabled}
       onMouseDown={handlePressStart}
       onMouseUp={handlePressEnd}
       onMouseLeave={handlePressEnd}
       onTouchStart={handlePressStart}
       onTouchEnd={handlePressEnd}
       onClick={handleClick} // for double-tap send
-      className={`flex items-center justify-center rounded-full h-10 w-10 md:h-14 md:w-14 border text-lg
+      className={`flex items-center justify-center rounded-full h-10 w-10 md:h-14 md:w-14 border text-lg transition-all duration-200
         ${
-          listening
+          disabled
+            ? "bg-muted border-border text-muted-foreground opacity-50 cursor-not-allowed"
+            : listening
             ? "bg-red-500 border-red-600 text-white"
-            : "bg-muted border-border text-primary"
+            : "bg-muted border-border text-primary hover:bg-muted/80"
         }`}
       title={
-        listening
+        disabled
+          ? "Please wait for the assistant to finish..."
+          : listening
           ? "Release to stop, double-tap to send"
           : "Hold to record, double-tap to send last transcript"
       }
